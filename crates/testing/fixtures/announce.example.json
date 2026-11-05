@@ -1,0 +1,85 @@
+{
+  "schema": "stintmate-catalog/1",
+  "catalog": "connector.example",
+  "language": "en",
+  "language_name": "English",
+  "messages": {
+    "flag_yellow": {
+      "text": "Yellow flag, sector {sector}.",
+      "params": {"sector": "int"},
+      "audience": "driver",
+      "priority": "critical",
+      "max_wait_s": 8,
+      "kind": "announcement",
+      "note": "A yellow flag. sector: 1, 2 or 3.",
+      "group": "flags"
+    },
+    "flag_yellow_cause": {
+      "text": "Yellow for {cause}.",
+      "params": {"cause": {"kind": "enum", "values": ["solo_crash", "vehicle_crash", "obstruction"]}},
+      "values": {"cause": {
+        "solo_crash": "a car off on its own",
+        "vehicle_crash": "a collision",
+        "obstruction": "a car blocking the track"}},
+      "audience": "driver",
+      "priority": "normal",
+      "max_wait_s": 8,
+      "kind": "announcement",
+      "group": "flags"
+    },
+    "flag_blue": {
+      "text": "Blue flag, let {driver} through.",
+      "params": {"driver": "text"},
+      "variants": ["Blue flag, {driver} is behind you.", "Let {driver} by."],
+      "audience": "driver",
+      "priority": "high",
+      "max_wait_s": 10,
+      "slot": "blue",
+      "group": "flags"
+    },
+    "flag_red": {
+      "text": "Red flag. Slow down and come back to the pits.",
+      "audience": "driver",
+      "priority": "critical",
+      "kind": "announcement",
+      "group": "flags"
+    },
+    "chequered": {
+      "text": "Chequered flag. You finish {position}.",
+      "params": {"position": "ordinal"},
+      "audience": "driver",
+      "priority": "normal",
+      "max_wait_s": 60,
+      "group": "race"
+    },
+    "gap_ahead": {
+      "text": "Gap ahead {gap} seconds, fuel {fuel} litres.",
+      "params": {"gap": "gap", "fuel": "litres"},
+      "audience": "driver",
+      "priority": "low",
+      "max_wait_s": 20,
+      "group": "rivals"
+    },
+    "radio_check": {
+      "text": "Radio check.",
+      "audience": "driver",
+      "priority": "normal",
+      "group": "test"
+    },
+    "engineer_test": {
+      "text": "{text}",
+      "params": {"text": "text"},
+      "audience": "agent",
+      "priority": "normal",
+      "group": "test"
+    },
+    "spotter_still_right": {
+      "text": "Car right.",
+      "variants": ["Still on your right."],
+      "audience": "driver",
+      "priority": "spotter",
+      "max_wait_s": 2,
+      "group": "spotter"
+    }
+  }
+}

@@ -1,0 +1,192 @@
+//! The outbox over a fake Pitwall: restart, rejected writes and retries.
+
+mod common;
+
+use common::{Rig, wait_for};
+use std::path::Path;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use stintmate_connector_link::link::{CallError, Transport};
+use stintmate_connector_link::outbox::{Outbox, REJECTED, SUFFIX};
+use stintmate_ipc::codec::{self, Value};
+
+const LAP: &str = "pitwall.write.lap";
+
+/// A link that is never connected: writes pile up on disk.
+struct Down;
+
+impl Transport for Down {
+    fn connected(&self) -> bool {
+        false
+    }
+    fn wait_connected(&self, _: Duration) -> bool {
+        false
+    }
+    fn call(&self, _: &str, _: Value, _: Option<&str>, _: Duration) -> Result<Value, CallError> {
+        Err(CallError::NotConnected)
+    }
+    fn call_async(
+        &self,
+        _: &str,
+        _: Value,
+        _: Duration,
+        _: Box<dyn FnOnce(Result<Value, CallError>) + Send>,
+    ) -> Result<(), CallError> {
+        Err(CallError::NotConnected)
+    }
+}
+
+fn params(n: u32) -> Value {
+    codec::map([("n", Value::from(n))])
+}
+
+fn files(folder: &Path) -> Vec<String> {
+    let mut v: Vec<String> = std::fs::read_dir(folder)
+        .unwrap()
+        .flatten()
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some(SUFFIX))
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn outbox_survives_restart_and_sends_leftovers_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let folder = dir.path().join("outbox");
+    // Run one: no connection, two writes stay on disk.
+    let (ob, h) = Outbox::start(&folder, Arc::new(Down), None, None, None).unwrap();
+    ob.put(LAP, "example/lap/1", params(1)).unwrap();
+    ob.put(LAP, "example/lap/2", params(2)).unwrap();
+    let s = ob.summary();
+    assert_eq!((s.pending, s.rejected), (2, 0));
+    assert!(s.oldest_at.is_some());
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+    assert_eq!(files(&folder).len(), 2);
+    // A write cut short by a crash is dropped on the next start.
+    std::fs::write(folder.join("00000000000000000099.tmp"), b"half").unwrap();
+
+    // Run two: connected, the leftovers go first, then the new write, the sequence goes on.
+    let rig = Rig::new();
+    let (ob, h) = Outbox::start(&folder, rig.transport(), None, None, None).unwrap();
+    assert_eq!(ob.summary().pending, 2);
+    ob.put(LAP, "example/lap/3", params(3)).unwrap();
+    assert!(ob.flush(Duration::from_secs(10)));
+    let iks: Vec<String> = rig
+        .fake
+        .calls()
+        .iter()
+        .filter(|c| c.method == LAP)
+        .filter_map(|c| c.ik.clone())
+        .collect();
+    assert_eq!(iks, ["example/lap/1", "example/lap/2", "example/lap/3"]);
+    assert!(files(&folder).is_empty());
+    assert!(!folder.join("00000000000000000099.tmp").exists());
+    ob.put(LAP, "example/lap/4", params(4)).unwrap();
+    assert!(ob.flush(Duration::from_secs(10)));
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+}
+
+#[test]
+fn the_sequence_continues_after_the_highest_file_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let folder = dir.path().join("outbox");
+    let (ob, h) = Outbox::start(&folder, Arc::new(Down), None, None, None).unwrap();
+    ob.put(LAP, "a", params(1)).unwrap();
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+    let (ob, h) = Outbox::start(&folder, Arc::new(Down), None, None, None).unwrap();
+    ob.put(LAP, "b", params(2)).unwrap();
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+    assert_eq!(
+        files(&folder),
+        [
+            "00000000000000000001.msgpack",
+            "00000000000000000002.msgpack"
+        ]
+    );
+}
+
+#[test]
+fn rejected_codes_go_to_rejected_dir() {
+    let rig = Rig::new();
+    let dir = tempfile::tempdir().unwrap();
+    let folder = dir.path().join("outbox");
+    let rejected: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let changes = Arc::new(AtomicU32::new(0));
+    let (r, c) = (rejected.clone(), changes.clone());
+    let (ob, h) = Outbox::start(
+        &folder,
+        rig.transport(),
+        None,
+        Some(Box::new(move |method, _, code| {
+            r.lock().unwrap().push((method.into(), code.into()));
+        })),
+        Some(Box::new(move || {
+            c.fetch_add(1, Ordering::Relaxed);
+        })),
+    )
+    .unwrap();
+    rig.fake.rules.lock().unwrap().refuse_next_with = Some("bad_request".into());
+    ob.put(LAP, "example/lap/1", params(1)).unwrap();
+    assert!(ob.flush(Duration::from_secs(10)));
+    assert!(wait_for(5, || ob.summary().rejected == 1));
+    assert!(files(&folder).is_empty());
+    assert_eq!(files(&folder.join(REJECTED)).len(), 1);
+    assert_eq!(
+        *rejected.lock().unwrap(),
+        [(LAP.to_owned(), "bad_request".to_owned())]
+    );
+    assert!(changes.load(Ordering::Relaxed) >= 2);
+    // The next write is not affected.
+    ob.put(LAP, "example/lap/2", params(2)).unwrap();
+    assert!(ob.flush(Duration::from_secs(10)));
+    assert_eq!(rig.fake.count(LAP), 1);
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+    // A later run counts the rejected file and numbers after it.
+    let (ob, h) = Outbox::start(&folder, rig.transport(), None, None, None).unwrap();
+    assert_eq!(ob.summary().rejected, 1);
+    ob.put(LAP, "example/lap/3", params(3)).unwrap();
+    assert!(ob.flush(Duration::from_secs(10)));
+    ob.close(Duration::ZERO);
+    h.join().unwrap();
+    assert_eq!(rig.fake.count(LAP), 2);
+}
+
+#[test]
+fn a_retryable_error_keeps_the_write_and_sends_it_again_with_the_same_key() {
+    let rig = Rig::new();
+    let dir = tempfile::tempdir().unwrap();
+    let folder = dir.path().join("outbox");
+    let results = Arc::new(AtomicU32::new(0));
+    let r = results.clone();
+    let (ob, h) = Outbox::start(
+        &folder,
+        rig.transport(),
+        Some(Box::new(move |_, _, _| {
+            r.fetch_add(1, Ordering::Relaxed);
+        })),
+        None,
+        None,
+    )
+    .unwrap();
+    rig.fake.rules.lock().unwrap().refuse_all_with = Some("busy".into());
+    ob.put(LAP, "example/lap/1", params(1)).unwrap();
+    std::thread::sleep(Duration::from_millis(400));
+    assert_eq!(ob.summary().pending, 1);
+    assert_eq!(files(&folder).len(), 1);
+    assert_eq!(rig.fake.count(LAP), 0);
+    rig.fake.rules.lock().unwrap().refuse_all_with = None;
+    assert!(ob.flush(Duration::from_secs(10)));
+    assert_eq!(rig.fake.count(LAP), 1);
+    assert_eq!(rig.fake.calls()[0].ik.as_deref(), Some("example/lap/1"));
+    assert!(wait_for(5, || results.load(Ordering::Relaxed) == 1));
+    ob.close(Duration::from_secs(1));
+    h.join().unwrap();
+}

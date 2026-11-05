@@ -15,6 +15,9 @@ publish = false
 stintmate-connector-resources = { path = "crates/resources" }
 stintmate-connector-platform = { path = "crates/platform" }
 stintmate-connector-i18n = { path = "crates/i18n" }
+stintmate-connector-wire = { path = "crates/wire" }
+stintmate-connector-link = { path = "crates/link" }
+stintmate-connector-testing = { path = "crates/testing" }
 # The IPC library, pinned to a release tag like any dependency.
 stintmate-ipc = { git = "https://github.com/Stintmate-App/stintmate-ipc", tag = "v0.3.3" }
 stintmate-ipc-check = { git = "https://github.com/Stintmate-App/stintmate-ipc", tag = "v0.3.3" }

@@ -4,6 +4,13 @@ All notable changes to this project are written here.
 
 ## Unreleased
 
+- `stintmate-connector-link`: the recorder's plumbing: `link` (the Pitwall and control links,
+  the hello from the connector spec, the backoff and the waits after a refusal), `outbox`,
+  `status`, `announcer` (catalog, rate windows and declarations take the connector's catalog and
+  id), `clock` and `boot` (arguments and start-up steps, with the exit codes).
+- `stintmate-connector-testing`: `FakePitwall`, temporary workspaces with a test key, unique pipe
+  users and an example connector spec with its announcement catalog.
+
 - The text catalog test fixtures are kept byte for byte (line endings included), so their pinned hashes hold on every checkout.
 - Repository created.
 - Cargo workspace with the toolchain pin, the static C runtime setting, `deny.toml`, `NOTICE`,
