@@ -1,0 +1,24 @@
+[package]
+name = "stintmate-connector-window"
+description = "The settings window of a Stintmate connector: a short-lived process that shows the control app's services, options and logs (egui, glow); the tray process never loads it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+stintmate-connector-control = { workspace = true }
+stintmate-connector-platform = { workspace = true }
+stintmate-connector-resources = { workspace = true }
+stintmate-connector-i18n = { workspace = true }
+stintmate-ipc = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+eframe = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+stintmate-connector-testing = { workspace = true }
