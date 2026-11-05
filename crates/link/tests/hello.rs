@@ -93,3 +93,55 @@ fn a_wrong_key_is_a_refusal_and_the_state_says_so() {
     link.close();
     fake.stop();
 }
+
+/// A `bye` that arrives after the hello is a refusal, not a lost connection.
+fn bye_after_the_hello(code: &str) -> (PitwallLink, FakePitwall, u64) {
+    let ws = TempWorkspace::new();
+    let pipe = pitwall_pipe(&unique_user());
+    let fake = FakePitwall::start(&pipe);
+    let link = PitwallLink::new(
+        &pipe,
+        peer_info(&EXAMPLE_SPEC, "recorder"),
+        key_source(ws.path()).unwrap(),
+    )
+    .unwrap();
+    link.start();
+    assert!(link.wait_connected(Duration::from_secs(15)));
+    assert!(wait_for(5, || fake.peer().is_some()));
+    let generation = link.generation();
+    fake.peer().unwrap().close(code, "closed by the fake");
+    (link, fake, generation)
+}
+
+#[test]
+fn a_bye_after_the_hello_is_a_refusal_and_waits_long() {
+    for code in [
+        "unauthorized",
+        "bad_request",
+        "busy",
+        "connector_busy",
+        "connector_id_taken",
+    ] {
+        let (link, fake, generation) = bye_after_the_hello(code);
+        assert!(
+            wait_for(5, || link.state().0 == LinkState::Refused),
+            "{code}"
+        );
+        let message = link.state().1.unwrap();
+        assert!(message.contains(code), "{message}");
+        // No reconnect within the short backoff, and the state does not fall back to waiting.
+        std::thread::sleep(Duration::from_millis(1500));
+        assert_eq!(link.state().0, LinkState::Refused, "{code}");
+        assert_eq!(link.generation(), generation, "{code}");
+        link.close();
+        fake.stop();
+    }
+}
+
+#[test]
+fn a_bye_that_is_not_a_refusal_stays_waiting() {
+    let (link, fake, _) = bye_after_the_hello("normal");
+    assert!(wait_for(5, || link.state().0 == LinkState::Waiting));
+    link.close();
+    fake.stop();
+}

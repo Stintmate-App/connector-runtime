@@ -2,6 +2,22 @@
 
 All notable changes to this project are written here.
 
+## Unreleased
+
+Behaviour changed; the protocol is unchanged.
+
+- `stintmate-connector-link`: a `bye` with `unauthorized`, `bad_request`, `busy`, `connector_busy`
+  or `connector_id_taken` is a refusal whether it arrives during the handshake or after the hello:
+  the link state is `refused`, with the wait of `REFUSED_RETRY` (`TAKEN_RETRY` after
+  `connector_id_taken`). Before, a `bye` after the hello was taken for a lost connection (state
+  `waiting`, retry after the short backoff). A lost connection without a `bye`, or a `bye` with
+  another code, stays `waiting`.
+- `stintmate-connector-platform`: `proc::lower_process_priority` returns whether the class was
+  set, and `proc::process_priority_class` reads it back.
+- `stintmate-connector-control`, `stintmate-connector-window`: each process lowers its own
+  priority to below normal at start and logs it once, so the control app and the window are below
+  normal also when they are not started by the control app. The recorder already did.
+
 ## 0.1.0 (2026-11-05)
 
 First release. The control app, window, recorder links, outbox, sink, status, texts, write-API structs, catalog validation and telemetry sample of the AMS2 connector 3.4.0, with the connector named by a `ConnectorSpec`. New against that code: the control app ignores unknown launcher options; `STINTMATE_DEV_INSTANCE` separates every process; the descriptor carries `window` and `features`.

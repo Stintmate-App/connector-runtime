@@ -15,6 +15,7 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 use stintmate_connector_platform::location::{self, WORKSPACE_ERROR_EXIT, WorkspaceArgs};
 use stintmate_connector_platform::logging::{self, LogConfig};
+use stintmate_connector_platform::proc::lower_process_priority;
 use stintmate_connector_platform::single::{self, Names, SingleInstance};
 use stintmate_connector_platform::spec::ConnectorSpec;
 use stintmate_connector_platform::workspace::SystemProbes;
@@ -452,6 +453,11 @@ pub fn main(spec: &'static ConnectorSpec, hooks: Hooks, argv: Vec<String>) -> i3
     let _ = std::fs::create_dir_all(&loc.data_dir);
     let _guard = logging::init(&LogConfig::new(&loc.data_dir, "ui"));
     logging::install_panic_hook();
+    if lower_process_priority() {
+        tracing::info!("Priority: below normal");
+    } else {
+        tracing::warn!("Cannot lower the priority of the control app");
+    }
     if !args.ignored.is_empty() {
         tracing::warn!("Ignored unknown argument(s): {}", args.ignored.join(" "));
     }
