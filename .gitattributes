@@ -1,1 +1,2 @@
 * text=auto
+crates/i18n/fixtures/*.json -text

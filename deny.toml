@@ -1,0 +1,41 @@
+# cargo-deny: only permissive licences in what a connector ships; advisories checked locally.
+
+[graph]
+targets = ["x86_64-pc-windows-msvc"]
+all-features = true
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "Zlib",
+    "Unicode-3.0",
+]
+confidence-threshold = 0.9
+
+# The fonts egui embeds (the window process only): the SIL Open Font Licence 1.1 and the Ubuntu
+# Font Licence 1.0 allow redistribution with the notice, which each connector's THIRD-PARTY-NOTICES carries.
+# Allowed for this crate only, never in general.
+exceptions = [
+    { allow = ["OFL-1.1", "Ubuntu-font-1.0"], crate = "epaint_default_fonts" },
+]
+
+[advisories]
+version = 2
+yanked = "deny"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = ["https://github.com/Stintmate-App/stintmate-ipc"]
