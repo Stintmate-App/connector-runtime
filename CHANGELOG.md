@@ -2,6 +2,11 @@
 
 All notable changes to this project are written here.
 
+## 0.1.2 (2026-11-05)
+
+- `stintmate-connector-testing`: `EXAMPLE_SPEC` takes its version from the crate, so the example
+  executables report the release they were built from. A test fix; behaviour unchanged.
+
 ## 0.1.1 (2026-11-05)
 
 Behaviour changed; the protocol is unchanged.
