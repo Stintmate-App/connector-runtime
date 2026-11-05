@@ -2,7 +2,7 @@
 
 All notable changes to this project are written here.
 
-## Unreleased
+## 0.1.1 (2026-11-05)
 
 Behaviour changed; the protocol is unchanged.
 

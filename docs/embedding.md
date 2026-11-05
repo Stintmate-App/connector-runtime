@@ -13,7 +13,7 @@ The smallest working example is in this repository: a spec of made-up values,
 ## 1. Dependencies
 
 See "Using it" in the [README](../README.md): the crates as git dependencies with
-`tag = "v0.1.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
+`tag = "v0.1.1"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
 (v0.3.3 for release 0.1.0). The recorder needs `platform`, `wire` and `link`; the control app
 needs `platform` and `control`; the window needs `window`; `resources` goes in
 `[build-dependencies]` and `testing` in `[dev-dependencies]`.
