@@ -407,7 +407,8 @@ pub fn validate_catalog(catalog: &Value, expected_id: &str) -> Vec<String> {
                 let mut used: Vec<&str> = names.iter().map(String::as_str).collect();
                 used.sort_unstable();
                 used.dedup();
-                let declared: Vec<&str> = params.keys().map(String::as_str).collect();
+                let mut declared: Vec<&str> = params.keys().map(String::as_str).collect();
+                declared.sort_unstable();
                 if used != declared {
                     out.push(format!(
                         "{at} placeholders {used:?} differ from params {declared:?}"
