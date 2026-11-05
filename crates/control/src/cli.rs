@@ -59,9 +59,14 @@ pub struct Args {
     pub workspace: Option<String>,
     /// `--allow-synced`.
     pub allow_synced: bool,
+    /// Options (and the bare values after them) this launcher does not know: ignored, so a newer
+    /// hub can append options an older connector has never heard of. Logged once at start.
+    pub ignored: Vec<String>,
 }
 
-/// Parses the arguments (program name excluded); the error is a usage message.
+/// Parses the arguments (program name excluded); the error is a usage message. Unknown options are
+/// not an error: they land in [`Args::ignored`] (the window and the recorder, which only the
+/// control app starts, still refuse them).
 pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Args, String> {
     let ws = WorkspaceArgs::parse(argv);
     let mut a = Args {
@@ -69,7 +74,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Args, String> {
         allow_synced: ws.allow_synced,
         ..Args::default()
     };
-    let mut it = ws.rest.into_iter();
+    let mut it = ws.rest.into_iter().peekable();
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--tray" => a.tray = true,
@@ -109,7 +114,16 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Args, String> {
                 let v = it.next().ok_or("--parent-pid needs a value")?;
                 a.parent_pid = Some(v.parse().map_err(|_| "--parent-pid needs a number")?);
             }
-            other => return Err(format!("unknown argument {other}")),
+            other => {
+                // Unknown: kept for the log. A bare token right after an unknown option is its
+                // value and is never read as a known option.
+                a.ignored.push(other.to_string());
+                if other.starts_with('-') && !other.contains('=') {
+                    while let Some(v) = it.next_if(|n| !n.starts_with('-')) {
+                        a.ignored.push(v);
+                    }
+                }
+            }
         }
     }
     if a.managed && a.parent_pid.is_none_or(|p| p == 0) {
@@ -438,6 +452,9 @@ pub fn main(spec: &'static ConnectorSpec, hooks: Hooks, argv: Vec<String>) -> i3
     let _ = std::fs::create_dir_all(&loc.data_dir);
     let _guard = logging::init(&LogConfig::new(&loc.data_dir, "ui"));
     logging::install_panic_hook();
+    if !args.ignored.is_empty() {
+        tracing::warn!("Ignored unknown argument(s): {}", args.ignored.join(" "));
+    }
     loc.log();
     let key_path = default_key_path(Some(&loc.workspace));
     let key =
@@ -684,8 +701,7 @@ mod tests {
         );
         assert!(p(&["--register", "--managed", "--parent-pid", "5"]).is_err());
         assert!(p(&["--register"]).unwrap().register);
-        assert!(p(&["--register", "--check"]).is_err(), "--check is gone");
-        assert!(p(&["--check"]).is_err());
+        assert_eq!(p(&["--register", "--check"]).unwrap().ignored, ["--check"]);
         let r = p(&["--register", "--flavour", "dev", "--uninstall", "C:\\u.exe"]).unwrap();
         assert_eq!(
             (r.flavour.as_deref(), r.uninstall.as_deref()),
@@ -703,7 +719,39 @@ mod tests {
         );
         assert!(p(&["--read-registration"]).is_err());
         assert!(p(&["--tray"]).unwrap().tray);
-        assert!(p(&["--bogus"]).is_err());
+        assert_eq!(p(&["--bogus"]).unwrap().ignored, ["--bogus"]);
+    }
+
+    #[test]
+    fn unknown_options_are_ignored() {
+        let a = p(&[
+            "--tray",
+            "--frobnicate",
+            "--new-hub-flag=1",
+            "--workspace",
+            "X",
+        ])
+        .unwrap();
+        assert!(a.tray);
+        assert_eq!(a.workspace.as_deref(), Some("X"));
+        assert_eq!(a.ignored, ["--frobnicate", "--new-hub-flag=1"]);
+    }
+
+    #[test]
+    fn the_value_of_an_unknown_option_is_not_a_known_option() {
+        let a = p(&["--frobnicate", "quit", "--tray"]).unwrap();
+        assert!(a.tray && !a.quit);
+        assert_eq!(a.ignored, ["--frobnicate", "quit"]);
+        let a = p(&["--mode", "x", "stray", "--version"]).unwrap();
+        assert!(a.version);
+        assert_eq!(a.ignored, ["--mode", "x", "stray"]);
+    }
+
+    #[test]
+    fn known_options_keep_their_errors_beside_unknown_ones() {
+        assert!(p(&["--frobnicate", "--parent-pid", "x"]).is_err());
+        assert!(p(&["--frobnicate", "--stintmate-hold", "--wait"]).is_err());
+        assert!(p(&["--frobnicate", "--managed"]).is_err());
     }
 
     #[test]

@@ -68,6 +68,28 @@ pub fn path(spec: &ConnectorSpec) -> io::Result<PathBuf> {
     Ok(connectors_dir()?.join(file_name(spec)))
 }
 
+/// The features the control app itself gives every connector: the window, the notice bar, the
+/// translated texts, the remembered services and the options file.
+pub const CONTROL_FEATURES: [&str; 5] = [
+    "window",
+    "notices",
+    "translated_texts",
+    "remembered_services",
+    "options",
+];
+
+/// The descriptor's `features`: [`CONTROL_FEATURES`], then the ones `spec.features` adds (the
+/// recorder's), each once.
+pub fn features(spec: &ConnectorSpec) -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = CONTROL_FEATURES.to_vec();
+    for f in spec.features {
+        if !out.contains(f) {
+            out.push(f);
+        }
+    }
+    out
+}
+
 /// The descriptor. `launcher`: this exe; `mutex`: the control app's single-instance mutex;
 /// `flavour`: which build this is (left out for the release build); `uninstall`: the uninstaller
 /// another build's setup runs to remove this install (left out when nothing installed it).
@@ -98,6 +120,8 @@ pub fn build(
         })).collect::<Vec<_>>(),
         // In <workspace>\connectors\<id>\, where the connector writes them.
         "logs": ["recorder.log", "ui.log"],
+        "window": true,
+        "features": features(spec),
         "written_at": stintmate_connector_platform::logging::local_iso(false),
         "written_by": format!("{} {}", spec.ui_app_id(), spec.version),
     });
@@ -318,6 +342,35 @@ mod tests {
     use crate::testspec::SPEC;
 
     const EXE: &str = r"C:\x\example-connector-ui.exe";
+
+    #[test]
+    fn descriptor_has_window_and_features() {
+        let d = build(&SPEC, Path::new(EXE), r"Local\M", None, None);
+        assert_eq!(d["window"], true);
+        assert_eq!(
+            d["features"],
+            serde_json::json!([
+                "window",
+                "notices",
+                "translated_texts",
+                "remembered_services",
+                "options",
+                "live_frame",
+                "lap_status"
+            ])
+        );
+        for f in d["features"].as_array().unwrap() {
+            assert!(
+                stintmate_connector_platform::spec::FEATURES.contains(&f.as_str().unwrap()),
+                "{f}"
+            );
+        }
+        static DUP: ConnectorSpec = ConnectorSpec {
+            features: &["window", "fuel"],
+            ..SPEC
+        };
+        assert_eq!(features(&DUP).len(), 6);
+    }
 
     #[test]
     fn every_field_of_workspace_md_5_5() {
