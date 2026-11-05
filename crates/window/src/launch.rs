@@ -6,6 +6,7 @@ use eframe::egui;
 use stintmate_connector_control::texts::Texts;
 use stintmate_connector_platform::location::{self, WORKSPACE_ERROR_EXIT, WorkspaceArgs};
 use stintmate_connector_platform::logging::{self, LogConfig};
+use stintmate_connector_platform::proc::lower_process_priority;
 use stintmate_connector_platform::single::{Names, SingleInstance};
 use stintmate_connector_platform::spec::ConnectorSpec;
 use stintmate_connector_platform::workspace::SystemProbes;
@@ -75,6 +76,11 @@ pub fn run(spec: &'static ConnectorSpec, argv: Vec<String>) -> i32 {
     let _ = std::fs::create_dir_all(&loc.data_dir);
     let _guard = logging::init(&LogConfig::new(&loc.data_dir, "window"));
     logging::install_panic_hook();
+    if lower_process_priority() {
+        tracing::info!("Priority: below normal");
+    } else {
+        tracing::warn!("Cannot lower the priority of the window");
+    }
     let mutex = args
         .mutex
         .clone()

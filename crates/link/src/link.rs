@@ -15,7 +15,7 @@ use std::time::Duration;
 use stintmate_connector_platform::spec::ConnectorSpec;
 use stintmate_ipc::blocking::{Client, PendingCall};
 use stintmate_ipc::codec::{self, Value};
-use stintmate_ipc::connection::CallOptions;
+use stintmate_ipc::connection::{CallOptions, ClosedBy};
 use stintmate_ipc::handshake::PeerInfo;
 use stintmate_ipc::keyfile::{KeyFile, KeySource, default_key_path};
 use stintmate_ipc::{Error, StateChannel};
@@ -365,11 +365,23 @@ impl PitwallLink {
                     if sh.stop.is_set() {
                         break;
                     }
-                    tracing::warn!("Connection to Pitwall lost; reconnecting");
-                    self.set(
-                        LinkState::Waiting,
-                        Some("connection to Pitwall lost".into()),
-                    );
+                    let bye = peer.inner().connection().close_info().and_then(|i| {
+                        (i.by == ClosedBy::Peer)
+                            .then(|| classify_bye(&i.code, &i.message))
+                            .flatten()
+                    });
+                    if let Some((state, text, wait)) = bye {
+                        refused = true;
+                        taken = wait == Wait::Taken;
+                        tracing::warn!("{text} (after the hello)");
+                        self.set(state, Some(text));
+                    } else {
+                        tracing::warn!("Connection to Pitwall lost; reconnecting");
+                        self.set(
+                            LinkState::Waiting,
+                            Some("connection to Pitwall lost".into()),
+                        );
+                    }
                     for h in lock(&sh.on_disconnected).iter() {
                         h();
                     }
@@ -412,25 +424,45 @@ enum Wait {
     Taken,
 }
 
+/// The `bye` codes of a refusal (connector protocol section 8): the link shows `refused`.
+const REFUSAL_CODES: [&str; 5] = [
+    "unauthorized",
+    "bad_request",
+    "busy",
+    "connector_busy",
+    "connector_id_taken",
+];
+
+/// State, message and wait for a `bye` that refuses the connection, whether it arrives during
+/// the handshake or after the hello; `None` for any other code.
+fn classify_bye(code: &str, message: &str) -> Option<(LinkState, String, Wait)> {
+    if !REFUSAL_CODES.contains(&code) {
+        return None;
+    }
+    let text = if message.is_empty() {
+        format!("Pitwall refused the connection: {code}")
+    } else {
+        format!("Pitwall refused the connection: {code}: {message}")
+    };
+    let wait = if code == "connector_id_taken" {
+        Wait::Taken
+    } else {
+        Wait::Long
+    };
+    Some((LinkState::Refused, text, wait))
+}
+
 /// State, message and the wait for the error of a failed attempt.
 fn classify(e: Option<&Error>) -> (LinkState, String, Wait) {
     match e {
-        Some(Error::PeerBye { code, message })
-            if code == "connector_busy"
-                || code == "unauthorized"
-                || code == "connector_id_taken" =>
-        {
-            let text = if message.is_empty() {
-                format!("Pitwall refused the connection: {code}")
-            } else {
-                format!("Pitwall refused the connection: {code}: {message}")
-            };
-            let wait = if code == "connector_id_taken" {
-                Wait::Taken
-            } else {
-                Wait::Long
-            };
-            (LinkState::Refused, text, wait)
+        Some(Error::PeerBye { code, message }) => {
+            classify_bye(code, message).unwrap_or_else(|| {
+                (
+                    LinkState::Waiting,
+                    format!("cannot reach Pitwall: bye {code}"),
+                    Wait::Short,
+                )
+            })
         }
         Some(Error::KeyFile(k)) => (LinkState::Waiting, k.to_string(), Wait::Long),
         Some(Error::PipeNotFound(_)) | None => (
@@ -679,5 +711,22 @@ mod tests {
         let (s, text, wait) = classify(Some(&taken));
         assert_eq!((s, wait), (LinkState::Refused, Wait::Taken));
         assert!(text.ends_with("connector_id_taken"));
+    }
+
+    #[test]
+    fn a_bye_is_classified_by_its_code() {
+        for code in REFUSAL_CODES {
+            let (state, text, wait) = classify_bye(code, "why").unwrap();
+            assert_eq!(state, LinkState::Refused);
+            assert!(text.ends_with(&format!("{code}: why")));
+            let want = if code == "connector_id_taken" {
+                Wait::Taken
+            } else {
+                Wait::Long
+            };
+            assert_eq!(wait, want, "{code}");
+        }
+        assert!(classify_bye("normal", "").is_none());
+        assert!(classify_bye("timeout", "").is_none());
     }
 }
