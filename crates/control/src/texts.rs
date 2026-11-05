@@ -1,11 +1,154 @@
 //! The control app's texts: the connector's embedded English catalog with the workspace's packs
 //! over it.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 use stintmate_connector_i18n::{Arg, Catalog, Embedded};
 use stintmate_connector_platform::spec::ConnectorSpec;
 
+/// Every key the control app and the window use, with the placeholders each one takes. A
+/// connector's English catalog must hold all of them; its own test calls [`check_ui_catalog`].
+pub const REQUIRED_KEYS: &[(&str, &[&str])] = &[
+    ("app.name", &[]),
+    ("data.source.workspace", &["source", "workspace"]),
+    ("detail.cpu", &["percent"]),
+    ("detail.forced_stop", &[]),
+    ("detail.game_not_running", &[]),
+    ("detail.game_running", &[]),
+    ("detail.outbox", &["n"]),
+    ("detail.pid", &["pid"]),
+    ("detail.rejected", &["n"]),
+    ("exit.button", &[]),
+    ("exit.tip", &[]),
+    ("logs.alerts_only", &[]),
+    ("logs.copy", &["n"]),
+    ("logs.footer", &["file"]),
+    ("logs.none_yet", &["file"]),
+    ("logs.open", &[]),
+    ("logs.ui", &[]),
+    ("nav.name", &[]),
+    ("nav.version", &["version"]),
+    ("notice.crashed.title", &["service"]),
+    ("notice.forced.message", &["seconds"]),
+    ("notice.forced.title", &["service"]),
+    ("notice.see_logs", &[]),
+    ("notice.shm_error.message", &[]),
+    ("notice.shm_error.title", &[]),
+    ("notice.start_failed", &["service"]),
+    ("options.autostart", &[]),
+    ("options.autostart.note", &[]),
+    ("options.error.autostart_change", &["error"]),
+    ("options.error.autostart_read", &["error"]),
+    ("options.error.save", &["error"]),
+    ("options.hz.advanced", &[]),
+    ("options.hz.name", &[]),
+    ("options.hz.note", &[]),
+    ("options.hz.suffix", &[]),
+    ("options.minimized", &[]),
+    ("options.minimized.note", &[]),
+    ("options.start", &["service"]),
+    ("options.start.note", &[]),
+    ("options.start.recorder.note", &[]),
+    ("page.logs", &[]),
+    ("page.options", &[]),
+    ("page.services", &[]),
+    ("service.recorder", &[]),
+    ("services.data_folder", &[]),
+    ("services.managed", &[]),
+    ("services.open", &[]),
+    ("services.open_data_folder", &[]),
+    ("services.stopping", &[]),
+    ("shortcut.needs_stintmate.text", &[]),
+    ("startup.error.detail", &["code", "message"]),
+    ("startup.error.hint", &[]),
+    ("startup.error.title", &[]),
+    ("status.crashed", &[]),
+    ("status.game_waiting", &[]),
+    ("status.garage", &[]),
+    ("status.menus", &[]),
+    ("status.not_installed", &[]),
+    ("status.off", &[]),
+    ("status.ownership.adopted", &[]),
+    ("status.ownership.external", &[]),
+    ("status.ownership.untied", &[]),
+    ("status.pitwall.absent", &[]),
+    ("status.pitwall.connected", &[]),
+    ("status.pitwall.refused", &[]),
+    ("status.recorder.driving_offline", &[]),
+    ("status.recorder.garage_offline", &[]),
+    ("status.recorder.lap", &["lap"]),
+    ("status.recorder.off_game_running", &[]),
+    ("status.recorder.recording", &[]),
+    ("status.recorder.session", &["session"]),
+    ("status.recorder.stint", &["stint"]),
+    ("status.shm_error", &[]),
+    ("status.starting", &[]),
+    ("status.stopping", &[]),
+    ("status.tooltip_line", &["service", "state"]),
+    ("switch.off", &[]),
+    ("switch.on", &[]),
+    ("tile.cpu", &[]),
+    ("tile.pitwall", &[]),
+    ("tile.pitwall.absent", &[]),
+    ("tile.pitwall.connected", &[]),
+    ("tile.pitwall.refused", &[]),
+    ("tile.rate", &[]),
+    ("tray.exit", &[]),
+    ("tray.logs", &[]),
+    ("tray.open", &[]),
+    ("tray.service.start", &["service"]),
+    ("tray.service.stop", &["service"]),
+    ("tray.stopping", &[]),
+];
+
+/// Checks a connector's English UI catalog text against [`REQUIRED_KEYS`]: the file must parse
+/// as a catalog with id `catalog_id`, every required key must be there and its text must use
+/// exactly the placeholders listed. Returns the problems found, empty when the catalog is good.
+pub fn check_ui_catalog(json: &str, catalog_id: &str) -> Vec<String> {
+    let embedded = match Embedded::parse(json, catalog_id) {
+        Ok(e) => e,
+        Err(why) => return vec![format!("invalid catalog file: {why}")],
+    };
+    let messages = embedded.messages();
+    let mut problems = Vec::new();
+    for (key, wanted) in REQUIRED_KEYS {
+        let Some(msg) = messages.get(*key) else {
+            problems.push(format!("missing key {key}"));
+            continue;
+        };
+        let texts: Vec<&str> = match msg.get("text") {
+            Some(serde_json::Value::String(s)) => vec![s.as_str()],
+            Some(serde_json::Value::Object(forms)) => {
+                forms.values().filter_map(|v| v.as_str()).collect()
+            }
+            _ => Vec::new(),
+        };
+        if texts.is_empty() {
+            problems.push(format!("key {key} has no text"));
+            continue;
+        }
+        let wanted: BTreeSet<String> = wanted.iter().map(|s| (*s).to_string()).collect();
+        for text in texts {
+            match stintmate_connector_i18n::parse(text) {
+                Ok(segments) => {
+                    let found = stintmate_connector_i18n::names(&segments);
+                    if found != wanted {
+                        problems.push(format!(
+                            "key {key} has placeholders {found:?}, expected {wanted:?}"
+                        ));
+                        break;
+                    }
+                }
+                Err(why) => {
+                    problems.push(format!("key {key} has a bad text: {why:?}"));
+                    break;
+                }
+            }
+        }
+    }
+    problems
+}
 /// A resolved catalog, cheap to clone.
 #[derive(Clone)]
 pub struct Texts {
@@ -126,5 +269,42 @@ mod tests {
         let t = Texts::load(&SPEC, None);
         assert_eq!(t.s("app.name"), "Example connector");
         assert_eq!(t.spec().id, "example");
+    }
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use super::*;
+    use crate::testspec::{CATALOG, SPEC};
+
+    #[test]
+    fn example_catalog_has_every_required_key() {
+        assert_eq!(
+            check_ui_catalog(CATALOG, "example-connector"),
+            Vec::<String>::new()
+        );
+        assert_eq!(CATALOG, SPEC.ui_catalog);
+    }
+
+    #[test]
+    fn the_testing_crates_example_spec_carries_the_same_catalog() {
+        assert_eq!(
+            stintmate_connector_testing::EXAMPLE_SPEC.ui_catalog,
+            CATALOG
+        );
+    }
+
+    #[test]
+    fn check_ui_catalog_reports_missing_keys_wrong_placeholders_and_bad_files() {
+        let mut doc: serde_json::Value = serde_json::from_str(CATALOG).unwrap();
+        doc["messages"].as_object_mut().unwrap().remove("app.name");
+        doc["messages"]["detail.pid"]["text"] = "PID {other}".into();
+        doc["messages"]["detail.pid"]["params"] = serde_json::json!({"other": "text"});
+        let problems = check_ui_catalog(&doc.to_string(), "example-connector");
+        assert!(problems.iter().any(|p| p == "missing key app.name"));
+        assert!(problems.iter().any(|p| p.contains("detail.pid")));
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        assert_eq!(check_ui_catalog("nope", "example-connector").len(), 1);
+        assert_eq!(check_ui_catalog(CATALOG, "other-connector").len(), 1);
     }
 }

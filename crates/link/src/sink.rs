@@ -120,6 +120,7 @@ enum Job<C> {
     Setup(u64, String, String, SetupBuild),
     PitExit(u64, String, Option<f64>),
     Participants(u64, Vec<ParticipantLap>),
+    Catalog(Box<Catalog>),
     Split(String, Vec<Value>),
     Mark(Sender<()>),
     Quit,
@@ -390,6 +391,14 @@ impl<C: ResumeClock> WriteSink<C> {
     pub fn participants(&mut self, local: u64, rows: Vec<ParticipantLap>) {
         self.core.send(Job::Participants(local, rows));
     }
+
+    /// Queues a catalog write in the middle of a session, for cars first seen after it opened
+    /// (the rivals of a multiclass race). It goes out in queue order, before the rows queued
+    /// after it that need it, under the same key rule as the session's own catalog
+    /// (`<prefix>/catalog/<sha12>`), so a catalog already sent is the same write.
+    pub fn catalog(&mut self, catalog: Catalog) {
+        self.core.send(Job::Catalog(Box::new(catalog)));
+    }
 }
 
 impl<C: ResumeClock> Drop for WriteSink<C> {
@@ -550,6 +559,7 @@ impl<C: ResumeClock> Core<C> {
                 let msg = PitExit { at, fuel_l };
                 self.put_seq("pit_exit", "pit_exit", &key, seq, to_value(&msg));
             }
+            Job::Catalog(cat) => self.catalog(&cat),
             Job::Participants(local, rows) => {
                 if rows.is_empty() || !lock(&self.shared).sessions.contains_key(&local) {
                     return;
@@ -921,6 +931,50 @@ mod tests {
             catalog_key("sample-sim", &serde_json::json!({ "cars": [] }))
                 .starts_with("sample-sim/catalog/")
         );
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn a_catalog_mid_session_is_queued_before_the_rows_that_need_it() {
+        use stintmate_connector_wire::messages::Car;
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        let rival = Catalog {
+            cars: vec![Car {
+                car_id: "rival-gt".into(),
+                name: "Rival GT".into(),
+                class_id: None,
+                fuel_capacity_l: None,
+            }],
+            ..Catalog::default()
+        };
+        let expected = catalog_key("sample-sim", &serde_json::to_value(&rival).unwrap());
+        a.catalog(rival.clone());
+        a.pit_exit(1, "t", Some(10.0));
+        a.catalog(rival);
+        assert!(a.queued(Duration::from_secs(5)));
+        let mut files: Vec<_> = std::fs::read_dir(dir.path().join("outbox"))
+            .unwrap()
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .collect();
+        files.sort();
+        let texts: Vec<Vec<u8>> = files.iter().filter_map(|p| std::fs::read(p).ok()).collect();
+        let at = |needle: &str| -> Vec<usize> {
+            (0..texts.len())
+                .filter(|i| contains(&texts[*i], needle.as_bytes()))
+                .collect()
+        };
+        assert!(expected.starts_with("sample-sim/catalog/"));
+        let cat = at(&expected);
+        let rows = at(&format!("sample-sim/{key}/pit_exit/1"));
+        assert_eq!(
+            cat.len(),
+            2,
+            "the key is the content's: both sends are the same write"
+        );
+        assert_eq!(rows.len(), 1);
+        assert!(cat[0] < rows[0] && rows[0] < cat[1], "queue order is kept");
         a.close(Duration::ZERO);
     }
 }

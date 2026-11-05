@@ -4,6 +4,16 @@ All notable changes to this project are written here.
 
 ## Unreleased
 
+- `stintmate-connector-control`: the launcher ignores options it does not know (they are kept in
+  `Args::ignored` and logged once) and a value after one is not read as a known option; known
+  options keep their errors. The descriptor gains `window` and `features` (the five the control
+  app gives, then the connector's own). `texts::REQUIRED_KEYS` and `texts::check_ui_catalog` check
+  a connector's English UI catalog. The command-line, endpoint (with the `stintmate-ipc-check
+  server` conformance run), hold and service tests run against the example connector.
+- `stintmate-connector-testing`: `EXAMPLE_SPEC` carries an example UI catalog.
+- `stintmate-connector-link`: `WriteSink::catalog` queues a catalog write in the middle of a
+  session, for cars first seen after it opened.
+
 - `stintmate-connector-link`: `sink::WriteSink`, the generic writer of a connector: session keys,
   idempotency keys under the connector id, write sequences, the session resume file (identity
   string and a `ResumeClock` the connector supplies), the stint Pitwall answered and the

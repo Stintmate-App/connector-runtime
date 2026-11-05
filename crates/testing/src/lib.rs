@@ -42,7 +42,7 @@ pub const EXAMPLE_SPEC: ConnectorSpec = ConnectorSpec {
     },
     recorder_hz: 60.0,
     features: &["live_frame", "lap_status"],
-    ui_catalog: "{}",
+    ui_catalog: include_str!("../fixtures/ui.example.json"),
     glyph: Glyph::I,
     dev_env_aliases: &[],
 };
