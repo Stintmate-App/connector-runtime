@@ -1,0 +1,662 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitwall.local/connector-protocol/v1.schema.json",
+  "title": "Pitwall connector protocol v1 messages",
+  "description": "One JSON object per line on the pipe \\\\.\\pipe\\pitwall-<user>, both ways (docs/connector-protocol.md). The write messages carried by the 'write' request are the write API's (write-api.schema.json, $id https://pitwall.local/write-api/v1.schema.json). The schema describes exactly what v1 senders send; receivers ignore fields they do not know.",
+  "oneOf": [
+    {"$ref": "#/$defs/hello_connector"},
+    {"$ref": "#/$defs/hello_tool"},
+    {"$ref": "#/$defs/welcome"},
+    {"$ref": "#/$defs/error"},
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/response"},
+    {"$ref": "#/$defs/notify"}
+  ],
+  "$defs": {
+    "slug": {
+      "description": "Lowercase id: letters, digits, '_' and '-', 1..32 characters, starting with a letter or digit.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+    },
+    "method_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "text": {"type": "string", "minLength": 1, "maxLength": 500},
+    "id": {"description": "Opaque catalogue id (the write API's ids).", "type": "string", "minLength": 1, "maxLength": 200},
+    "time": {"description": "ISO 8601 date and time with a UTC offset, e.g. 2026-10-18T18:00:00.123+02:00.", "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([+-]\\d{2}:\\d{2}|Z)$"},
+    "request_id": {
+      "description": "Chosen by the sender of the request, unique among its pending requests on this connection; the response carries it back.",
+      "oneOf": [
+        {"type": "integer", "minimum": 0},
+        {"type": "string", "minLength": 1, "maxLength": 64}
+      ]
+    },
+    "error_code": {
+      "description": "Error codes (docs/connector-protocol.md#error-codes). A receiver treats a code it does not know as 'failed'.",
+      "type": "string",
+      "enum": ["not_implemented", "not_implemented_by_connector", "connector_disconnected", "core_not_running", "game_not_running", "not_on_track", "not_configured", "bad_request", "busy", "failed", "protocol_error", "writer_busy"]
+    },
+    "function": {
+      "description": "A live function a connector may implement: 'live_frame' (answers the live_frame request), 'capture_setup' (answers capture_setup), 'brake_cues' (plays brake cues: sends brake_references requests and receives brake_references_changed). Unknown names are ignored by the core.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "phase": {
+      "description": "Where the user is: 'menus' (not in a session: main menus, loading, replays, restarting), 'garage' (in a session, the player's car in the garage: the simulator's garage or setup screen, not driving), 'on_track' (driving, the simulation runs; the pit lane included), 'paused' (in a session out of the garage, the simulator paused or an in-session menu over the car on track).",
+      "type": "string",
+      "enum": ["menus", "garage", "on_track", "paused"]
+    },
+    "pit_mode": {
+      "description": "Pitwall's pit mode code (data-model.md): 0 on track, 1 driving into the pits, 2 in the pit box, 3 driving out of the pits or the garage, 4 in the garage.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+
+    "hello_connector": {
+      "description": "First message of a connector's connection.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "hello"},
+        "protocol": {"description": "Protocol version the connector speaks.", "type": "integer", "minimum": 1},
+        "role": {"const": "connector"},
+        "connector": {
+          "type": "object",
+          "properties": {
+            "id": {"$ref": "#/$defs/slug", "description": "Stable connector id, e.g. 'examplesim-connector'."},
+            "name": {"$ref": "#/$defs/text", "description": "Display name, used in messages to the user."},
+            "version": {"$ref": "#/$defs/text"}
+          },
+          "required": ["id", "name"],
+          "additionalProperties": false
+        },
+        "sim": {"$ref": "#/$defs/slug", "description": "Simulator id (the write API's hello.sim)."},
+        "sim_name": {"$ref": "#/$defs/text", "description": "Simulator display name."},
+        "service": {"$ref": "#/$defs/slug", "description": "Which process of the connector this connection is (e.g. 'recorder', 'capture', 'cues'); unique among the connector's open connections."},
+        "functions": {
+          "description": "Live functions this connection implements (may be empty).",
+          "type": "array",
+          "items": {"$ref": "#/$defs/function"},
+          "uniqueItems": true
+        }
+      },
+      "required": ["type", "protocol", "role", "connector", "sim", "sim_name", "service", "functions"],
+      "additionalProperties": false
+    },
+    "hello_tool": {
+      "description": "First message of a tool's connection (e.g. pitwall-mcp).",
+      "type": "object",
+      "properties": {
+        "type": {"const": "hello"},
+        "protocol": {"type": "integer", "minimum": 1},
+        "role": {"const": "tool"},
+        "tool": {
+          "type": "object",
+          "properties": {
+            "name": {"$ref": "#/$defs/text"},
+            "version": {"$ref": "#/$defs/text"}
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["type", "protocol", "role", "tool"],
+      "additionalProperties": false
+    },
+    "welcome": {
+      "description": "The core accepted the hello.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "welcome"},
+        "protocol": {"description": "The protocol version of this connection.", "type": "integer", "minimum": 1},
+        "pitwall_version": {"$ref": "#/$defs/text"},
+        "heartbeat_s": {"description": "Interval of the connector's status heartbeat, s (5 in v1).", "type": "number", "exclusiveMinimum": 0}
+      },
+      "required": ["type", "protocol", "pitwall_version"],
+      "additionalProperties": false
+    },
+    "error": {
+      "description": "Fatal error on the connection (a refused hello, a malformed line): the sender closes the connection after it.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "error"},
+        "code": {"$ref": "#/$defs/error_code"},
+        "message": {"type": "string"},
+        "supported_protocols": {"description": "With a refused protocol version: the versions the core speaks.", "type": "array", "items": {"type": "integer", "minimum": 1}}
+      },
+      "required": ["type", "code", "message"],
+      "additionalProperties": false
+    },
+
+    "request": {
+      "description": "A request; answered by exactly one response with the same id.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "request"},
+        "id": {"$ref": "#/$defs/request_id"},
+        "method": {"$ref": "#/$defs/method_name"},
+        "params": {"type": "object"}
+      },
+      "required": ["type", "id", "method"],
+      "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"method": {"const": "write"}}, "required": ["method"]}, "then": {"required": ["params"], "properties": {"params": {"$ref": "#/$defs/params_write"}}}},
+        {"if": {"properties": {"method": {"const": "setup_capture"}}, "required": ["method"]}, "then": {"required": ["params"], "properties": {"params": {"$ref": "#/$defs/params_setup_capture"}}}},
+        {"if": {"properties": {"method": {"const": "brake_references"}}, "required": ["method"]}, "then": {"required": ["params"], "properties": {"params": {"$ref": "#/$defs/layout_key"}}}},
+        {"if": {"properties": {"method": {"const": "live_frame"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_empty"}}}},
+        {"if": {"properties": {"method": {"const": "capture_setup"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_capture_setup"}}}},
+        {"if": {"properties": {"method": {"const": "live_state"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_empty"}}}},
+        {"if": {"properties": {"method": {"const": "connector_status"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_empty"}}}},
+        {"if": {"properties": {"method": {"const": "brake_references_changed"}}, "required": ["method"]}, "then": {"required": ["params"], "properties": {"params": {"$ref": "#/$defs/params_brake_references_changed"}}}}
+      ]
+    },
+    "response": {
+      "description": "The answer to a request: ok with a result, or not ok with an error code and a message.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "response"},
+        "id": {"$ref": "#/$defs/request_id"},
+        "method": {"$ref": "#/$defs/method_name", "description": "The request's method, echoed."},
+        "ok": {"type": "boolean"},
+        "result": {"type": "object"},
+        "error": {"$ref": "#/$defs/error_code"},
+        "message": {"type": "string"},
+        "details": {"description": "Extra data of an error (e.g. not_implemented_by_connector: connector, sim, sim_name, function; a refused write: the Writer's reply).", "type": "object"}
+      },
+      "required": ["type", "id", "method", "ok"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"properties": {"ok": {"const": true}}, "required": ["ok"]},
+          "then": {"required": ["result"], "not": {"anyOf": [{"required": ["error"]}, {"required": ["details"]}]}},
+          "else": {"required": ["error", "message"], "not": {"required": ["result"]}}
+        },
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "write"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/result_write"}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "setup_capture"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/result_setup_capture"}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "brake_references"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/result_brake_references"}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "live_frame"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/live_frame"}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "capture_setup"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"oneOf": [{"$ref": "#/$defs/result_capture_setup_connector"}, {"$ref": "#/$defs/result_capture_setup_tool"}]}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "connector_status"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/connector_status"}}}},
+        {"if": {"properties": {"ok": {"const": true}, "method": {"const": "brake_references_changed"}}, "required": ["ok", "method"]}, "then": {"properties": {"result": {"$ref": "#/$defs/result_brake_references_changed"}}}},
+        {"if": {"properties": {"error": {"const": "not_implemented_by_connector"}}, "required": ["error"]}, "then": {"required": ["details"], "properties": {"details": {"$ref": "#/$defs/details_not_implemented_by_connector"}}}}
+      ]
+    },
+    "notify": {
+      "description": "A one-way message; never answered.",
+      "type": "object",
+      "properties": {
+        "type": {"const": "notify"},
+        "method": {"$ref": "#/$defs/method_name"},
+        "params": {"type": "object"}
+      },
+      "required": ["type", "method", "params"],
+      "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"method": {"const": "status"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_status"}}}},
+        {"if": {"properties": {"method": {"const": "event"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_event"}}}},
+        {"if": {"properties": {"method": {"const": "brake_references_changed"}}, "required": ["method"]}, "then": {"properties": {"params": {"$ref": "#/$defs/params_brake_references_changed"}}}}
+      ]
+    },
+
+    "params_empty": {"type": "object", "properties": {}, "additionalProperties": false},
+    "params_write": {
+      "description": "One write API message, exactly as pitwall-ingest takes it, except 'hello' (the handshake replaces it).",
+      "oneOf": [
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/catalog"},
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/session_start"},
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/lap"},
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/setup"},
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/participant_laps"},
+        {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/session_end"}
+      ]
+    },
+    "result_write": {
+      "description": "The Writer's reply to an accepted message (write-api.md, Replies): ok true, the message type and its ids.",
+      "type": "object",
+      "properties": {
+        "ok": {"const": true},
+        "type": {"type": "string", "enum": ["catalog", "session_start", "lap", "setup", "participant_laps", "session_end"]},
+        "session_id": {"type": "integer", "minimum": 1},
+        "lap": {"type": "integer", "minimum": 1},
+        "lap_id": {"type": "integer", "minimum": 1},
+        "setup": {"type": "integer", "minimum": 1},
+        "rows": {"type": "integer", "minimum": 0},
+        "stored": {"type": "boolean"},
+        "laps": {"type": "integer", "minimum": 0},
+        "classes": {"type": "integer", "minimum": 0},
+        "cars": {"type": "integer", "minimum": 0},
+        "tracks": {"type": "integer", "minimum": 0},
+        "layouts": {"type": "integer", "minimum": 0},
+        "dry_run": {"type": "boolean"}
+      },
+      "required": ["ok", "type"],
+      "additionalProperties": false
+    },
+
+    "params_setup_capture": {
+      "description": "A setup screen image the connector took on its own (e.g. a wheel button): the core stores it and emits setup_captured.",
+      "type": "object",
+      "properties": {
+        "png_b64": {"description": "The PNG file, base64.", "type": "string", "minLength": 1},
+        "source": {"description": "What triggered it.", "type": "string", "enum": ["button", "cli"]},
+        "note": {"type": ["string", "null"], "maxLength": 2000},
+        "taken_at": {"$ref": "#/$defs/time"},
+        "meta": {"description": "Free capture details kept in the capture's sidecar (window, method, warnings...).", "type": "object"}
+      },
+      "required": ["png_b64", "source"],
+      "additionalProperties": false
+    },
+    "result_setup_capture": {
+      "type": "object",
+      "properties": {
+        "name": {"description": "Capture name, e.g. 28_1_3.", "type": "string"},
+        "path": {"description": "Absolute path of the stored PNG.", "type": "string"},
+        "session_id": {"type": ["integer", "null"]},
+        "stint": {"type": ["integer", "null"]}
+      },
+      "required": ["name", "path", "session_id", "stint"],
+      "additionalProperties": false
+    },
+
+    "layout_key": {
+      "description": "A car on a track layout, in the connector's sim (catalogue ids).",
+      "type": "object",
+      "properties": {
+        "car_id": {"$ref": "#/$defs/id"},
+        "track_id": {"$ref": "#/$defs/id"},
+        "layout_id": {"$ref": "#/$defs/id"}
+      },
+      "required": ["car_id", "track_id", "layout_id"],
+      "additionalProperties": false
+    },
+    "result_brake_references": {
+      "description": "Every brake reference of the car and layout (enabled or not) and the cue settings the engineer edits.",
+      "type": "object",
+      "properties": {
+        "car_id": {"$ref": "#/$defs/id"},
+        "track_id": {"$ref": "#/$defs/id"},
+        "layout_id": {"$ref": "#/$defs/id"},
+        "rev": {"description": "Revision of the reference store; increases on every change.", "type": "integer", "minimum": 0},
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "distance_m": {"description": "Lap distance of the cue point (the beep), m.", "type": "number", "minimum": 0},
+              "track_length_m": {"type": "number", "exclusiveMinimum": 0},
+              "corner_id": {"type": ["string", "null"]},
+              "corner_name": {"type": ["string", "null"]},
+              "enabled": {"type": "boolean"}
+            },
+            "required": ["id", "distance_m", "track_length_m", "corner_id", "corner_name", "enabled"],
+            "additionalProperties": false
+          }
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "mode": {"description": "'countdown' (ticks, then the beep at the point) or 'single' (one beep at the point).", "type": "string", "enum": ["countdown", "single"]},
+            "ticks": {"description": "Ticks before the beep in countdown mode.", "type": "integer", "minimum": 0},
+            "tick_interval_s": {"type": "number", "exclusiveMinimum": 0}
+          },
+          "required": ["mode", "ticks", "tick_interval_s"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["car_id", "track_id", "layout_id", "rev", "references", "settings"],
+      "additionalProperties": false
+    },
+    "params_brake_references_changed": {
+      "description": "The references or cue settings changed. Without car/track/layout (or null): every layout, or the settings.",
+      "type": "object",
+      "properties": {
+        "sim": {"$ref": "#/$defs/slug", "description": "Tool requests only: the sim of the layout (the core notifies the connectors of that sim)."},
+        "car_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "track_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "layout_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]}
+      },
+      "additionalProperties": false
+    },
+    "result_brake_references_changed": {
+      "type": "object",
+      "properties": {"notified": {"description": "Connections notified.", "type": "integer", "minimum": 0}},
+      "required": ["notified"],
+      "additionalProperties": false
+    },
+
+    "params_capture_setup": {
+      "description": "Capture the simulator's setup screen: count images interval_s apart. 'note' only from a tool (the core keeps it; it is not sent to the connector).",
+      "type": "object",
+      "properties": {
+        "count": {"type": "integer", "minimum": 1, "maximum": 12, "default": 1},
+        "interval_s": {"type": "number", "minimum": 0, "maximum": 60, "default": 5},
+        "note": {"type": ["string", "null"], "maxLength": 2000}
+      },
+      "additionalProperties": false
+    },
+    "result_capture_setup_connector": {
+      "description": "Connector -> core: the images (the core stores them).",
+      "type": "object",
+      "properties": {
+        "images": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "png_b64": {"type": "string", "minLength": 1},
+              "taken_at": {"$ref": "#/$defs/time"},
+              "meta": {"type": "object"}
+            },
+            "required": ["png_b64"],
+            "additionalProperties": false
+          }
+        },
+        "adjusted": {"description": "How count/interval_s were limited, if they were.", "type": "array", "items": {"type": "string"}},
+        "skipped_duplicates": {"type": "integer", "minimum": 0},
+        "errors": {"description": "Failures after the first image.", "type": "array", "items": {"type": "string"}}
+      },
+      "required": ["images"],
+      "additionalProperties": false
+    },
+    "result_capture_setup_tool": {
+      "description": "Core -> tool: what was stored (the PNGs are on disk at each capture's path).",
+      "type": "object",
+      "properties": {
+        "requested": {"type": "object", "properties": {"count": {"type": "integer"}, "interval_s": {"type": "number"}}, "additionalProperties": false},
+        "adjusted": {"type": "array", "items": {"type": "string"}},
+        "saved": {"type": "integer", "minimum": 0},
+        "skipped_duplicates": {"type": "integer", "minimum": 0},
+        "errors": {"type": "array", "items": {"type": "string"}},
+        "captures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "path": {"type": "string"},
+              "session_id": {"type": ["integer", "null"]},
+              "stint": {"type": ["integer", "null"]}
+            },
+            "required": ["name", "path", "session_id", "stint"]
+          }
+        }
+      },
+      "required": ["saved", "captures"],
+      "additionalProperties": false
+    },
+
+    "params_status": {
+      "description": "The connector's state, on every change and at least every 5 s (heartbeat).",
+      "type": "object",
+      "properties": {
+        "game_running": {"description": "The simulator's process runs (the connector's check, never the mere existence of its data channel).", "type": "boolean"},
+        "phase": {"oneOf": [{"$ref": "#/$defs/phase"}, {"type": "null"}], "description": "null while the game is not running."},
+        "session_id": {"description": "The Pitwall session this connector is writing (the session_start reply), or null.", "type": ["integer", "null"], "minimum": 1},
+        "stint": {"type": ["integer", "null"], "minimum": 1},
+        "lap": {"description": "Pitwall lap number of the lap being driven (1..n), or null.", "type": ["integer", "null"], "minimum": 1},
+        "error_code": {"description": "The connector's own problem, a short lowercase code (e.g. 'unsupported_sim_version'), or null when healthy.", "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{0,63}$"},
+        "message": {"description": "Human-readable state or problem, shown in the control app.", "type": ["string", "null"], "maxLength": 500}
+      },
+      "required": ["game_running", "phase"],
+      "additionalProperties": false
+    },
+    "params_event": {
+      "description": "One event of the connector's own for the feed (events.md): the core writes it to data/events.jsonl with v, ts and seq. The core's own event types (session_started, session_ended, stint_started, lap_completed, setup_captured, connector_connected, connector_disconnected) are refused.",
+      "type": "object",
+      "properties": {
+        "event_type": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+      },
+      "required": ["event_type"],
+      "not": {"anyOf": [{"required": ["v"]}, {"required": ["type"]}, {"required": ["ts"]}, {"required": ["seq"]}]},
+      "additionalProperties": true
+    },
+
+    "details_not_implemented_by_connector": {
+      "type": "object",
+      "properties": {
+        "connector": {
+          "type": "object",
+          "properties": {"id": {"$ref": "#/$defs/slug"}, "name": {"type": "string"}, "version": {"type": ["string", "null"]}},
+          "required": ["id", "name"],
+          "additionalProperties": false
+        },
+        "sim": {"$ref": "#/$defs/slug"},
+        "sim_name": {"type": "string"},
+        "function": {"$ref": "#/$defs/function"}
+      },
+      "required": ["connector", "sim", "sim_name", "function"],
+      "additionalProperties": false
+    },
+
+    "connector_status": {
+      "description": "The connector_status tool request's result, and the content of connector_status.json in Pitwall's data folder.",
+      "type": "object",
+      "properties": {
+        "core": {
+          "type": "object",
+          "properties": {
+            "running": {"type": "boolean"},
+            "pid": {"type": "integer"},
+            "pitwall_version": {"type": "string"},
+            "protocol": {"type": "integer"},
+            "started_at": {"$ref": "#/$defs/time"},
+            "updated_at": {"$ref": "#/$defs/time"},
+            "data_dir": {"type": "string", "description": "The core's data folder (database, event feed, captures, logs)."},
+            "workspace": {
+              "description": "How the data folder was chosen (docs/workspace.md at the repository root); null when it was given explicitly (--data-dir).",
+              "type": ["object", "null"],
+              "properties": {
+                "path": {"type": ["string", "null"], "description": "The workspace folder; null in legacy mode."},
+                "source": {"enum": ["argv", "env", "pointer", "legacy"]},
+                "synced": {"type": "boolean"}
+              },
+              "required": ["path", "source", "synced"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["running"],
+          "additionalProperties": false
+        },
+        "connectors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"$ref": "#/$defs/slug"},
+              "name": {"type": "string"},
+              "version": {"type": ["string", "null"]},
+              "sim": {"$ref": "#/$defs/slug"},
+              "sim_name": {"type": "string"},
+              "functions": {"description": "Union of its connections' functions.", "type": "array", "items": {"$ref": "#/$defs/function"}},
+              "connected_at": {"$ref": "#/$defs/time"},
+              "recording": {
+                "description": "What the connector is writing now, in Pitwall's numbers: the session (also before it is stored at its first lap), the stint and the lap being driven (the last stored lap + 1). From the core's own record of the connector's writes, else from its services' status; null with no session open.",
+                "oneOf": [
+                  {"type": "null"},
+                  {"type": "object",
+                   "properties": {
+                     "session_id": {"type": "integer", "minimum": 1},
+                     "stint": {"type": ["integer", "null"], "minimum": 1},
+                     "lap": {"type": ["integer", "null"], "minimum": 1}
+                   },
+                   "required": ["session_id", "stint", "lap"],
+                   "additionalProperties": false}
+                ]
+              },
+              "services": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {"$ref": "#/$defs/slug"},
+                    "functions": {"type": "array", "items": {"$ref": "#/$defs/function"}},
+                    "connected_at": {"$ref": "#/$defs/time"},
+                    "status": {
+                      "oneOf": [
+                        {"type": "null"},
+                        {"$ref": "#/$defs/status_entry"}
+                      ]
+                    }
+                  },
+                  "required": ["service", "functions", "connected_at", "status"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["id", "name", "sim", "sim_name", "functions", "connected_at", "recording", "services"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["core", "connectors"],
+      "additionalProperties": false
+    },
+
+    "status_entry": {"description": "The last status a service sent, with when the core received it.", "type": "object", "properties": {"game_running": {"description": "The simulator's process runs (the connector's check, never the mere existence of its data channel).", "type": "boolean"}, "phase": {"oneOf": [{"$ref": "#/$defs/phase"}, {"type": "null"}], "description": "null while the game is not running."}, "session_id": {"description": "The Pitwall session this connector is writing (the session_start reply), or null.", "type": ["integer", "null"], "minimum": 1}, "stint": {"type": ["integer", "null"], "minimum": 1}, "lap": {"description": "Pitwall lap number of the lap being driven (1..n), or null.", "type": ["integer", "null"], "minimum": 1}, "error_code": {"description": "The connector's own problem, a short lowercase code (e.g. 'unsupported_sim_version'), or null when healthy.", "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{0,63}$"}, "message": {"description": "Human-readable state or problem, shown in the control app.", "type": ["string", "null"], "maxLength": 500}, "received_at": {"$ref": "#/$defs/time"}, "age_s": {"description": "Seconds since received_at when the status was read.", "type": "number", "minimum": 0}}, "required": ["game_running", "phase", "received_at"], "additionalProperties": false},
+
+    "live_frame": {
+      "description": "What happens on track now, in the data model's vocabulary and units; built by the connector only when asked. Groups other than sim and phase are required while phase is garage, on_track or paused and absent in menus. 'null' = the simulator does not give the value now.",
+      "type": "object",
+      "properties": {
+        "sim": {"$ref": "#/$defs/slug"},
+        "phase": {"$ref": "#/$defs/phase"},
+        "taken_at": {"$ref": "#/$defs/time"},
+        "data_age_s": {"description": "Seconds since the simulator last updated what the frame was built from.", "type": "number", "minimum": 0},
+        "session": {
+          "type": "object",
+          "properties": {
+            "type": {"description": "Session type (data-model.md).", "type": "string", "enum": ["practice", "qualifying", "race", "warmup", "other"]},
+            "time_remaining_s": {"description": "Session time left, s; null in a lap race or when not given.", "type": ["number", "null"], "exclusiveMinimum": 0},
+            "laps_in_event": {"description": "Laps of a lap race; null in a timed session.", "type": ["integer", "null"], "minimum": 1},
+            "duration_s": {"description": "Length of a timed session, s; null in a lap race.", "type": ["number", "null"], "exclusiveMinimum": 0},
+            "additional_laps": {"description": "Laps to drive after the time runs out in a timed race (0 = none).", "type": ["integer", "null"], "minimum": 0},
+            "started": {"description": "Optional: false before the start of a race (grid, formation lap), true once started; null or absent when not known or not a race.", "type": ["boolean", "null"]}
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        },
+        "track": {
+          "type": "object",
+          "properties": {
+            "track_id": {"$ref": "#/$defs/id"},
+            "layout_id": {"$ref": "#/$defs/id"},
+            "track_name": {"type": "string"},
+            "layout_name": {"type": "string"},
+            "length_m": {"description": "Layout length, m.", "type": ["number", "null"], "exclusiveMinimum": 0}
+          },
+          "required": ["track_id", "layout_id", "length_m"],
+          "additionalProperties": false
+        },
+        "car": {
+          "description": "The player's car.",
+          "type": "object",
+          "properties": {
+            "car_id": {"$ref": "#/$defs/id"},
+            "class_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+            "car_name": {"type": "string"},
+            "class_name": {"type": "string"},
+            "pit_mode": {"$ref": "#/$defs/pit_mode"},
+            "speed_kmh": {"type": "number", "minimum": 0},
+            "gear": {"description": "-1 reverse, 0 neutral, 1..n.", "type": ["integer", "null"], "minimum": -1},
+            "rpm": {"type": ["number", "null"], "minimum": 0},
+            "fuel_l": {"description": "Fuel in the tank, L.", "type": ["number", "null"], "minimum": 0},
+            "fuel_capacity_l": {"description": "Tank capacity, L.", "type": ["number", "null"], "exclusiveMinimum": 0},
+            "penalty": {"description": "Optional: a penalty the simulator has pending for the player; null = none or not known.", "enum": ["drive_through", "stop_go", "other", null]},
+            "wheels": {
+              "type": "object",
+              "properties": {
+                "fl": {"$ref": "#/$defs/wheel"},
+                "fr": {"$ref": "#/$defs/wheel"},
+                "rl": {"$ref": "#/$defs/wheel"},
+                "rr": {"$ref": "#/$defs/wheel"}
+              },
+              "required": ["fl", "fr", "rl", "rr"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["car_id", "pit_mode", "speed_kmh"],
+          "additionalProperties": false
+        },
+        "lap": {
+          "description": "The player's lap now. Absent when there is no player car (e.g. spectating).",
+          "type": "object",
+          "properties": {
+            "current_lap": {"description": "The simulator's number of the lap being driven.", "type": "integer", "minimum": 0},
+            "laps_completed": {"type": "integer", "minimum": 0},
+            "distance_m": {"description": "Lap distance from the start/finish line, m (may be slightly negative or above the length around the line).", "type": "number"},
+            "time_s": {"description": "Lap clock of the lap being driven, s; null while not timed (out lap, pits, before the start).", "type": ["number", "null"], "minimum": 0},
+            "valid": {"description": "False once the simulator invalidated the lap.", "type": "boolean"},
+            "sector": {"description": "Current sector, 1-based.", "type": ["integer", "null"], "minimum": 1},
+            "last_lap_s": {"type": ["number", "null"], "exclusiveMinimum": 0},
+            "best_lap_s": {"description": "The player's best lap of this session, by the simulator.", "type": ["number", "null"], "exclusiveMinimum": 0},
+            "lap_type": {"description": "Optional: the data model's lap type of the lap being driven, as the connector knows it so far (an in lap is known once the car turns into the pits); null = not known.", "enum": ["formation", "out", "in", "flying", null]},
+            "invalid_cause": {"description": "Optional: why valid is false: off_track, track_limits, cut, penalty, or unknown (flagged with no cause the connector can tell); null or absent when valid or not given.", "enum": ["off_track", "track_limits", "cut", "penalty", "unknown", null]},
+            "invalid_cause_certain": {"description": "Optional: false when invalid_cause is only the probable cause (e.g. all four wheels over a kerb just before the flag).", "type": "boolean"},
+            "invalid_at_m": {"description": "Optional: lap distance where the simulator flagged the lap invalid, m.", "type": ["number", "null"]}
+          },
+          "required": ["current_lap", "laps_completed", "distance_m", "time_s", "valid", "last_lap_s", "best_lap_s"],
+          "additionalProperties": false
+        },
+        "splits": {
+          "description": "The simulator's own time gaps of the player to the car ahead and behind, s; null when not given. Pitwall uses them in races only.",
+          "type": "object",
+          "properties": {
+            "ahead_s": {"type": ["number", "null"], "exclusiveMinimum": 0},
+            "behind_s": {"type": ["number", "null"], "exclusiveMinimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "conditions": {"$ref": "https://pitwall.local/write-api/v1.schema.json#/$defs/conditions"},
+        "participants": {
+          "description": "Every car in the session, the player included.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/participant"}
+        }
+      },
+      "required": ["sim", "phase"],
+      "additionalProperties": false,
+      "if": {"properties": {"phase": {"enum": ["garage", "on_track", "paused"]}}},
+      "then": {"required": ["session", "track", "car", "participants"]},
+      "else": {"not": {"anyOf": [{"required": ["session"]}, {"required": ["track"]}, {"required": ["car"]}, {"required": ["lap"]}, {"required": ["participants"]}]}}
+    },
+    "wheel": {
+      "type": "object",
+      "properties": {
+        "tread_in_c": {"description": "Tread temperature, inner edge (towards the centreline), C.", "type": ["number", "null"]},
+        "tread_mid_c": {"type": ["number", "null"]},
+        "tread_out_c": {"type": ["number", "null"]},
+        "pressure_kpa": {"description": "Live (hot) pressure, kPa.", "type": ["number", "null"], "minimum": 0},
+        "carcass_c": {"type": ["number", "null"]},
+        "wear": {"description": "0..1 as the simulator gives it.", "type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "compound": {"type": ["string", "null"], "minLength": 1},
+        "brake_c": {"description": "Brake temperature, C.", "type": ["number", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "participant": {
+      "type": "object",
+      "properties": {
+        "index": {"description": "The simulator's participant index (may be reused by another driver in a session).", "type": "integer", "minimum": 0},
+        "name": {"type": "string"},
+        "is_player": {"type": "boolean"},
+        "is_safety_car": {"type": "boolean", "default": false},
+        "active": {"description": "False for a slot the simulator lists but that is not in the session now.", "type": "boolean", "default": true},
+        "position": {"type": ["integer", "null"], "minimum": 1},
+        "laps_completed": {"type": "integer", "minimum": 0},
+        "current_lap": {"type": ["integer", "null"], "minimum": 0},
+        "distance_m": {"description": "Lap distance, m.", "type": "number"},
+        "sector": {"type": ["integer", "null"], "minimum": 1},
+        "pit_mode": {"$ref": "#/$defs/pit_mode"},
+        "car_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "class_id": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "last_lap_s": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "best_lap_s": {"type": ["number", "null"], "exclusiveMinimum": 0}
+      },
+      "required": ["index", "name", "is_player", "position", "laps_completed", "distance_m", "pit_mode"],
+      "additionalProperties": false
+    }
+  }
+}

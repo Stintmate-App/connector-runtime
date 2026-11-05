@@ -1,0 +1,1155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitwall.local/write-api/v1.schema.json",
+  "title": "Pitwall write API v1 messages",
+  "description": "One JSON object per message (one line of pitwall-ingest's stdin). See docs/write-api.md. Rules beyond the schema (order, references, channel lengths) are checked by Pitwall and named in its error replies.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/hello"
+    },
+    {
+      "$ref": "#/$defs/catalog"
+    },
+    {
+      "$ref": "#/$defs/session_start"
+    },
+    {
+      "$ref": "#/$defs/lap"
+    },
+    {
+      "$ref": "#/$defs/pit_exit"
+    },
+    {
+      "$ref": "#/$defs/setup"
+    },
+    {
+      "$ref": "#/$defs/participant_laps"
+    },
+    {
+      "$ref": "#/$defs/session_end"
+    }
+  ],
+  "$defs": {
+    "car": {
+      "type": "object",
+      "properties": {
+        "car_id": {
+          "description": "Simulator's car id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "class_id": {
+          "description": "Class of the car (a catalogued class).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fuel_capacity_l": {
+          "description": "Fuel tank capacity, L.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        }
+      },
+      "required": [
+        "car_id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "car_class": {
+      "type": "object",
+      "properties": {
+        "class_id": {
+          "description": "Simulator's class id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "class_id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "catalog": {
+      "type": "object",
+      "description": "Names of classes, cars, tracks and layouts; repeatable, upserts by id.",
+      "properties": {
+        "type": {
+          "const": "catalog"
+        },
+        "classes": {
+          "description": "Car classes.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/car_class"
+              }
+            ]
+          }
+        },
+        "cars": {
+          "description": "Cars.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/car"
+              }
+            ]
+          }
+        },
+        "tracks": {
+          "description": "Tracks.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/track"
+              }
+            ]
+          }
+        },
+        "layouts": {
+          "description": "Layouts.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/layout"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "conditions": {
+      "type": "object",
+      "description": "Weather; every field optional.",
+      "properties": {
+        "ambient_c": {
+          "description": "Air temperature, c.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "track_c": {
+          "description": "Track surface temperature, c.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "rain": {
+          "description": "Rain density, 0..1.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "wind_speed_ms": {
+          "description": "Wind speed, m/s.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        },
+        "cloud": {
+          "description": "Cloud cover, 0..1.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "extra_entry": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "Display label (e.g. 'Front anti-roll bar').",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "value": {
+          "description": "Value as set.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "group": {
+          "description": "Group (e.g. 'Suspension').",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "unit": {
+          "description": "Unit, if any.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "hello": {
+      "type": "object",
+      "description": "First message: who is writing.",
+      "properties": {
+        "type": {
+          "const": "hello"
+        },
+        "sim": {
+          "description": "Simulator id, lowercase (e.g. 'examplesim'); part of every catalogue key.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+        },
+        "sim_name": {
+          "description": "Simulator display name (e.g. 'ExampleSim').",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "connector": {
+          "description": "Connector name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "connector_version": {
+          "description": "Connector version.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "model_version": {
+          "description": "Data model version the connector was written for (must be 2 when given).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "sim",
+        "sim_name",
+        "connector"
+      ],
+      "additionalProperties": false
+    },
+    "lap": {
+      "type": "object",
+      "description": "One lap, written in one transaction.",
+      "properties": {
+        "type": {
+          "const": "lap"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "lap_type": {
+          "description": "Lap type.",
+          "type": "string",
+          "enum": [
+            "formation",
+            "out",
+            "in",
+            "flying"
+          ]
+        },
+        "time_s": {
+          "description": "Lap time, s (absent = not timed).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "valid": {
+          "description": "False when the simulator invalidated the lap.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "time_source": {
+          "description": "Where the time comes from (needs time_s; default 'official').",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "official",
+            "measured",
+            null
+          ]
+        },
+        "measured_time_s": {
+          "description": "The connector's own measurement of the lap time, s, kept next to an official time_s (e.g. as a sanity check); shown only.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "started_at": {
+          "description": "When the lap started, ISO 8601 with UTC offset.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "sim_lap": {
+          "description": "The simulator's own lap counter, shown only.",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "fuel_start_l": {
+          "description": "Fuel at the start of the lap, L.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        },
+        "fuel_used_l": {
+          "description": "Fuel used during the lap, L.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_speed_kmh": {
+          "description": "Top speed, km/h (default: the maximum of the speed channel).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        },
+        "conditions": {
+          "description": "Conditions at the end of the lap.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conditions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sectors": {
+          "description": "Sector times in order (sector 1 first).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/sector"
+              }
+            ]
+          }
+        },
+        "channels": {
+          "description": "Per-sample channels, equally long; t, dist and speed required when any is given (docs/data-model.md, channel catalogue).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "propertyNames": {
+            "anyOf": [
+              {
+                "enum": [
+                  "abs",
+                  "brake",
+                  "clutch",
+                  "dist",
+                  "fl_brake_t",
+                  "fl_pressure",
+                  "fl_ride",
+                  "fl_rps",
+                  "fl_surface",
+                  "fl_susp",
+                  "fl_susp_vel",
+                  "fl_t_air",
+                  "fl_t_carcass",
+                  "fl_t_in",
+                  "fl_t_mid",
+                  "fl_t_out",
+                  "fl_wear",
+                  "fr_brake_t",
+                  "fr_pressure",
+                  "fr_ride",
+                  "fr_rps",
+                  "fr_surface",
+                  "fr_susp",
+                  "fr_susp_vel",
+                  "fr_t_air",
+                  "fr_t_carcass",
+                  "fr_t_in",
+                  "fr_t_mid",
+                  "fr_t_out",
+                  "fr_wear",
+                  "fuel",
+                  "g_lat",
+                  "g_long",
+                  "g_vert",
+                  "gear",
+                  "invalid",
+                  "pit_mode",
+                  "rl_brake_t",
+                  "rl_pressure",
+                  "rl_ride",
+                  "rl_rps",
+                  "rl_surface",
+                  "rl_susp",
+                  "rl_susp_vel",
+                  "rl_t_air",
+                  "rl_t_carcass",
+                  "rl_t_in",
+                  "rl_t_mid",
+                  "rl_t_out",
+                  "rl_wear",
+                  "rpm",
+                  "rr_brake_t",
+                  "rr_pressure",
+                  "rr_ride",
+                  "rr_rps",
+                  "rr_surface",
+                  "rr_susp",
+                  "rr_susp_vel",
+                  "rr_t_air",
+                  "rr_t_carcass",
+                  "rr_t_in",
+                  "rr_t_mid",
+                  "rr_t_out",
+                  "rr_wear",
+                  "speed",
+                  "steer",
+                  "t",
+                  "tc",
+                  "throttle",
+                  "x",
+                  "y",
+                  "z"
+                ]
+              },
+              {
+                "pattern": "^ext_[A-Za-z0-9_]{1,60}$"
+              }
+            ]
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 1
+              },
+              {
+                "type": "object",
+                "required": [
+                  "encoding",
+                  "data"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "encoding": {
+                    "const": "f32"
+                  },
+                  "data": {
+                    "type": "string",
+                    "contentEncoding": "base64"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "on_track": {
+          "description": "The car was on the track, outside the pit lane, during the lap (default: derived from the pit_mode channel when sent, else true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lap": {
+          "description": "Explicit lap number in the session (must be free). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "lap_id": {
+          "description": "Explicit lap id (must be free). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "stint": {
+          "description": "Stint number, 1-based (Pitwall numbers stints: a new one at a pit exit after the car was on track). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "lap_type"
+      ],
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "track_id": {
+          "description": "The layout's track (a catalogued track).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "layout_id": {
+          "description": "Simulator's layout (variation) id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "length_m": {
+          "description": "Lap length, m.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        }
+      },
+      "required": [
+        "track_id",
+        "layout_id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "participant_lap": {
+      "type": "object",
+      "properties": {
+        "participant": {
+          "description": "The connector's participant index.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "lap": {
+          "description": "The simulator's laps completed after this crossing.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "name": {
+          "description": "Driver name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "car_id": {
+          "description": "Simulator's car id.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "class_id": {
+          "description": "Simulator's class id.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "is_player": {
+          "description": "The player's own car.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "time_s": {
+          "description": "Lap time, s.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "time_source": {
+          "description": "Where the time comes from (needs time_s; default 'official').",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "official",
+            "measured",
+            "sectors",
+            null
+          ]
+        },
+        "sectors": {
+          "description": "Sector times in order (null = not timed).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "anyOf": [
+              {
+                "description": "Sector time, s.",
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "valid": {
+          "description": "False when the simulator invalidated the lap.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "pit": {
+          "description": "The lap touched the pit lane.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "pit_stops": {
+          "description": "Pit visits seen in the session up to this crossing.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "from_line": {
+          "description": "The crossing that started the lap was seen.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": true
+        },
+        "position": {
+          "description": "Position just after the crossing.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "crossed_at_s": {
+          "description": "Connector clock at the crossing, s since the session started.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        },
+        "sim_best_lap_s": {
+          "description": "The simulator's fastest lap for the participant so far, s.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "state": {
+          "description": "The simulator's race state label (shown only).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "participant",
+        "lap",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "participant_laps": {
+      "type": "object",
+      "description": "Rival timing: one row per participant per lap counted by the simulator.",
+      "properties": {
+        "type": {
+          "const": "participant_laps"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "laps": {
+          "description": "Rival timing rows.",
+          "type": "array",
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/participant_lap"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "laps"
+      ],
+      "additionalProperties": false
+    },
+    "pit_exit": {
+      "type": "object",
+      "description": "The car has just left the pit lane or the garage under its own power. Pitwall starts the next stint when the car had been on track since the last exit.",
+      "properties": {
+        "type": {
+          "const": "pit_exit"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "at": {
+          "description": "When the car left, ISO 8601 with UTC offset.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "fuel_l": {
+          "description": "Fuel on board at the exit, L.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "sector": {
+      "type": "object",
+      "properties": {
+        "time_s": {
+          "description": "Sector time, s (null or absent = not timed).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "session_end": {
+      "type": "object",
+      "description": "Closes the session. A session with no lap leaves nothing in the database.",
+      "properties": {
+        "type": {
+          "const": "session_end"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "ended_at": {
+          "description": "End, ISO 8601 with UTC offset.",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "ended_at"
+      ],
+      "additionalProperties": false
+    },
+    "session_start": {
+      "type": "object",
+      "description": "Opens a session; the reply carries its session_id. Stored with its first lap.",
+      "properties": {
+        "type": {
+          "const": "session_start"
+        },
+        "started_at": {
+          "description": "Start, ISO 8601 with UTC offset.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "session_type": {
+          "description": "Session type.",
+          "type": "string",
+          "enum": [
+            "practice",
+            "qualifying",
+            "race",
+            "warmup",
+            "other"
+          ]
+        },
+        "car_id": {
+          "description": "The player's car (a catalogued car).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "track_id": {
+          "description": "Track (with layout_id: a catalogued layout).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "layout_id": {
+          "description": "Layout (with track_id).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "external_ref": {
+          "description": "The connector's own reference for the session.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "conditions": {
+          "description": "Conditions at the start.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conditions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "session_id": {
+          "description": "Explicit session id (must be free). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "started_at",
+        "session_type"
+      ],
+      "additionalProperties": false
+    },
+    "setup": {
+      "type": "object",
+      "description": "A setup: basic parameters as fields, everything else in extra.",
+      "properties": {
+        "type": {
+          "const": "setup"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "taken_at": {
+          "description": "When it was read or written, ISO 8601 with UTC offset.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "description": "Why it was recorded.",
+          "type": "string",
+          "enum": [
+            "session_start",
+            "pit_exit",
+            "engineer"
+          ]
+        },
+        "source": {
+          "description": "Who gives it.",
+          "type": "string",
+          "enum": [
+            "telemetry",
+            "engineer"
+          ]
+        },
+        "brake_bias_front_pct": {
+          "description": "Brake bias to the front, % (0..100).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0,
+          "maximum": 100.0
+        },
+        "compound_front": {
+          "description": "Front tyre compound.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "compound_rear": {
+          "description": "Rear tyre compound.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "pressure_fl_kpa": {
+          "description": "Cold tyre pressure as set, front left, kpa.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "pressure_fr_kpa": {
+          "description": "Cold tyre pressure as set, front right, kpa.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "pressure_rl_kpa": {
+          "description": "Cold tyre pressure as set, rear left, kpa.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "pressure_rr_kpa": {
+          "description": "Cold tyre pressure as set, rear right, kpa.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0.0
+        },
+        "fuel_l": {
+          "description": "Fuel loaded, l.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.0
+        },
+        "wing_front": {
+          "description": "Front wing setting, simulator's scale.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wing_rear": {
+          "description": "Rear wing setting, simulator's scale.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "abs": {
+          "description": "Abs setting, simulator's scale.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "tc": {
+          "description": "Traction control setting, simulator's scale.",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "extra": {
+          "description": "Every other parameter, keyed by the connector's own key.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/extra_entry"
+          }
+        },
+        "stint": {
+          "description": "Stint number, 1-based (Pitwall numbers stints: a new one at a pit exit after the car was on track). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "taken_at",
+        "reason",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "track": {
+      "type": "object",
+      "properties": {
+        "track_id": {
+          "description": "Simulator's track (location) id.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "track_id",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
