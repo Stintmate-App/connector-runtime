@@ -4,6 +4,12 @@ All notable changes to this project are written here.
 
 ## Unreleased
 
+- `stintmate-connector-link`: `sink::WriteSink`, the generic writer of a connector: session keys,
+  idempotency keys under the connector id, write sequences, the session resume file (identity
+  string and a `ResumeClock` the connector supplies), the stint Pitwall answered and the
+  row-by-row requeue of a refused rival batch. Laps and setups are built by closures that run on
+  the writer thread.
+
 - `stintmate-connector-link`: the recorder's plumbing: `link` (the Pitwall and control links,
   the hello from the connector spec, the backoff and the waits after a refusal), `outbox`,
   `status`, `announcer` (catalog, rate windows and declarations take the connector's catalog and

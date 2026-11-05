@@ -4,6 +4,7 @@
 //!   the waits after a refusal), the connection to the connector's control app, the hello
 //!   ([`link::peer_info`]) and the publisher of `connector.status` / `service.status`.
 //! * [`outbox`]: every write to Pitwall goes through the disk first and is sent in order.
+//! * [`sink`]: session keys, write sequences, idempotency keys and the session resume file.
 //! * [`status`]: the status the loop reports, and the thread that publishes it.
 //! * [`announcer`]: announcements, rate windows and the per-connection declarations.
 //! * [`clock`]: the time source.
@@ -19,4 +20,5 @@ pub mod boot;
 pub mod clock;
 pub mod link;
 pub mod outbox;
+pub mod sink;
 pub mod status;
