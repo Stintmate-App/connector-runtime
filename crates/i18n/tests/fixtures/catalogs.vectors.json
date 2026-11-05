@@ -1,0 +1,2696 @@
+{
+ "description": "Test vectors of docs/catalogs.md (v1). Every app's tests run them from a copy (tests/fixtures/catalogs.vectors.json). tags: normalized is null for an invalid tag, whose chain is [\"en\"]; the chain lists the pack folders to try in order, the built-in English comes after it. plural: category per integer n for the given rules. hash: source_hash of a source message. formatting: the written rendering of a source message (text and int kinds, the English plural rules). validation: the reason a translation entry is rejected, or ok (with stale = its source_hash is missing or differs). files: the reason a pack file (content as JSON, or raw text) is skipped, for its folder and catalog name. resolve: the per-key result of a built-in catalog with packs along the chain of language. spoken: the spoken rendering of each kind with the number catalog given (only apps that speak run it).",
+ "tags": [
+  {
+   "tag": "en",
+   "normalized": "en",
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "EN",
+   "normalized": "en",
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "es",
+   "normalized": "es",
+   "chain": [
+    "es",
+    "en"
+   ]
+  },
+  {
+   "tag": "es-cl",
+   "normalized": "es-CL",
+   "chain": [
+    "es-CL",
+    "es",
+    "en"
+   ]
+  },
+  {
+   "tag": "ES-CL",
+   "normalized": "es-CL",
+   "chain": [
+    "es-CL",
+    "es",
+    "en"
+   ]
+  },
+  {
+   "tag": "es-419",
+   "normalized": "es-419",
+   "chain": [
+    "es-419",
+    "es",
+    "en"
+   ]
+  },
+  {
+   "tag": "en-GB",
+   "normalized": "en-GB",
+   "chain": [
+    "en-GB",
+    "en"
+   ]
+  },
+  {
+   "tag": "zh-hant-tw",
+   "normalized": "zh-Hant-TW",
+   "chain": [
+    "zh-Hant-TW",
+    "zh-Hant",
+    "zh",
+    "en"
+   ]
+  },
+  {
+   "tag": "pt-BR",
+   "normalized": "pt-BR",
+   "chain": [
+    "pt-BR",
+    "pt",
+    "en"
+   ]
+  },
+  {
+   "tag": "",
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "english",
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "e",
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "es_CL",
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": "es-CL-x",
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": null,
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  },
+  {
+   "tag": 12,
+   "normalized": null,
+   "chain": [
+    "en"
+   ]
+  }
+ ],
+ "plural": [
+  {
+   "rules": {
+    "one": "i = 1 and v = 0"
+   },
+   "cases": [
+    {
+     "n": 0,
+     "category": "other"
+    },
+    {
+     "n": 1,
+     "category": "one"
+    },
+    {
+     "n": 2,
+     "category": "other"
+    },
+    {
+     "n": 21,
+     "category": "other"
+    },
+    {
+     "n": -1,
+     "category": "one"
+    }
+   ]
+  },
+  {
+   "rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "cases": [
+    {
+     "n": 0,
+     "category": "other"
+    },
+    {
+     "n": 1,
+     "category": "one"
+    },
+    {
+     "n": 2,
+     "category": "other"
+    },
+    {
+     "n": 1000000,
+     "category": "many"
+    },
+    {
+     "n": 2000000,
+     "category": "many"
+    },
+    {
+     "n": 1000001,
+     "category": "other"
+    },
+    {
+     "n": 21,
+     "category": "other"
+    }
+   ]
+  },
+  {
+   "rules": {
+    "one": "v = 0 and i % 10 = 1 and i % 100 != 11 @integer 1, 21, 31",
+    "few": "v = 0 and i % 10 = 2..4 and i % 100 != 12..14",
+    "many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14"
+   },
+   "cases": [
+    {
+     "n": 1,
+     "category": "one"
+    },
+    {
+     "n": 21,
+     "category": "one"
+    },
+    {
+     "n": 11,
+     "category": "many"
+    },
+    {
+     "n": 2,
+     "category": "few"
+    },
+    {
+     "n": 22,
+     "category": "few"
+    },
+    {
+     "n": 12,
+     "category": "many"
+    },
+    {
+     "n": 5,
+     "category": "many"
+    },
+    {
+     "n": 0,
+     "category": "many"
+    },
+    {
+     "n": 111,
+     "category": "many"
+    },
+    {
+     "n": 101,
+     "category": "one"
+    }
+   ]
+  },
+  {
+   "rules": {
+    "zero": "n = 0",
+    "one": "n = 1",
+    "two": "n = 2",
+    "few": "n % 100 = 3..10",
+    "many": "n % 100 = 11..99"
+   },
+   "cases": [
+    {
+     "n": 0,
+     "category": "zero"
+    },
+    {
+     "n": 1,
+     "category": "one"
+    },
+    {
+     "n": 2,
+     "category": "two"
+    },
+    {
+     "n": 3,
+     "category": "few"
+    },
+    {
+     "n": 10,
+     "category": "few"
+    },
+    {
+     "n": 11,
+     "category": "many"
+    },
+    {
+     "n": 99,
+     "category": "many"
+    },
+    {
+     "n": 100,
+     "category": "other"
+    },
+    {
+     "n": 102,
+     "category": "other"
+    },
+    {
+     "n": 103,
+     "category": "few"
+    }
+   ]
+  }
+ ],
+ "hash": [
+  {
+   "message": {
+    "text": "Best lap."
+   },
+   "hash": "78b7f1912311"
+  },
+  {
+   "message": {
+    "text": "Fuel for {laps}.",
+    "params": {
+     "laps": "laps"
+    }
+   },
+   "hash": "1c90f59465b4"
+  },
+  {
+   "message": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "hash": "76c4e0de3a0b"
+  },
+  {
+   "message": {
+    "text": "Puncture, {wheel}.",
+    "params": {
+     "wheel": {
+      "kind": "enum",
+      "values": [
+       "fl",
+       "fr"
+      ]
+     }
+    },
+    "values": {
+     "wheel": {
+      "fl": "front left",
+      "fr": "front right"
+     }
+    }
+   },
+   "hash": "4125e571738e"
+  },
+  {
+   "message": {
+    "text": "Café «{name}» — {n} °C",
+    "params": {
+     "name": "text",
+     "n": "int"
+    }
+   },
+   "hash": "c97cfe78b12a"
+  }
+ ],
+ "formatting": [
+  {
+   "message": {
+    "text": "Tray"
+   },
+   "params": {},
+   "expected": "Tray"
+  },
+  {
+   "message": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "params": {
+    "app": "Pitwall"
+   },
+   "expected": "Pitwall stopped"
+  },
+  {
+   "message": {
+    "text": "{a} and {b}",
+    "params": {
+     "a": "text",
+     "b": "text"
+    }
+   },
+   "params": {
+    "b": "B",
+    "a": "A"
+   },
+   "expected": "A and B"
+  },
+  {
+   "message": {
+    "text": "Use {{name}} for {name}",
+    "params": {
+     "name": "text"
+    }
+   },
+   "params": {
+    "name": "x"
+   },
+   "expected": "Use {name} for x"
+  },
+  {
+   "message": {
+    "text": "{name}",
+    "params": {
+     "name": "text"
+    }
+   },
+   "params": {
+    "name": "{other}"
+   },
+   "expected": "{other}"
+  },
+  {
+   "message": {
+    "text": "Missing {name}",
+    "params": {
+     "name": "text"
+    }
+   },
+   "params": {},
+   "expected": "Missing {name}"
+  },
+  {
+   "message": {
+    "text": "Extra",
+    "params": {}
+   },
+   "params": {
+    "x": "1"
+   },
+   "expected": "Extra"
+  },
+  {
+   "message": {
+    "text": {
+     "one": "{n} lap",
+     "other": "{n} laps"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "params": {
+    "n": 1
+   },
+   "expected": "1 lap"
+  },
+  {
+   "message": {
+    "text": {
+     "one": "{n} lap",
+     "other": "{n} laps"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "params": {
+    "n": 0
+   },
+   "expected": "0 laps"
+  },
+  {
+   "message": {
+    "text": {
+     "one": "{n} lap",
+     "other": "{n} laps"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "params": {
+    "n": 21
+   },
+   "expected": "21 laps"
+  },
+  {
+   "message": {
+    "text": {
+     "one": "one lap of {who}",
+     "other": "{n} laps of {who}"
+    },
+    "params": {
+     "n": "int",
+     "who": "text"
+    },
+    "plural": "n"
+   },
+   "params": {
+    "n": 1,
+    "who": "Ana"
+   },
+   "expected": "one lap of Ana"
+  }
+ ],
+ "validation": [
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{n} juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.sets",
+   "source": null,
+   "translation": {
+    "text": "{n} juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "unknown_key"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "placeholder_mismatch"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{n} {m} juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "placeholder_mismatch"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{count} juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "placeholder_mismatch"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{n juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_placeholder"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{n} juegos}"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_placeholder"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{N} juegos"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_placeholder"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "{n} juegos {{literal}}"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": ""
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": 5
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {},
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.sets",
+   "source": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": {
+     "one": "{n} juego",
+     "other": "{n} juegos"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje",
+     "other": "{n} mensajes"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "un mensaje",
+     "other": "{n} mensajes"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje",
+     "many": "{n} de mensajes",
+     "other": "{n} mensajes"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "plural_missing_other"
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje",
+     "few": "{n} mensajes",
+     "other": "{n} mensajes"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "plural_bad_category"
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje",
+     "other": ""
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {}
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_text"
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": "{n} mensajes"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n} mensaje {x}",
+     "other": "{n} mensajes"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "placeholder_mismatch"
+  },
+  {
+   "key": "ui.laps",
+   "source": {
+    "text": {
+     "one": "{n} lap for {who}",
+     "other": "{n} laps for {who}"
+    },
+    "params": {
+     "n": "int",
+     "who": "text"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "una vuelta para {who}",
+     "other": "{n} vueltas para {who}"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.laps",
+   "source": {
+    "text": {
+     "one": "{n} lap for {who}",
+     "other": "{n} laps for {who}"
+    },
+    "params": {
+     "n": "int",
+     "who": "text"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "una vuelta",
+     "other": "{n} vueltas para {who}"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "placeholder_mismatch"
+  },
+  {
+   "key": "ui.puncture",
+   "source": {
+    "text": "Puncture, {wheel}.",
+    "params": {
+     "wheel": {
+      "kind": "enum",
+      "values": [
+       "fl",
+       "fr"
+      ]
+     }
+    },
+    "values": {
+     "wheel": {
+      "fl": "front left",
+      "fr": "front right"
+     }
+    }
+   },
+   "translation": {
+    "text": "Pinchazo, {wheel}.",
+    "values": {
+     "wheel": {
+      "fl": "delantera izquierda",
+      "fr": "delantera derecha"
+     }
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.puncture",
+   "source": {
+    "text": "Puncture, {wheel}.",
+    "params": {
+     "wheel": {
+      "kind": "enum",
+      "values": [
+       "fl",
+       "fr"
+      ]
+     }
+    },
+    "values": {
+     "wheel": {
+      "fl": "front left",
+      "fr": "front right"
+     }
+    }
+   },
+   "translation": {
+    "text": "Pinchazo, {wheel}.",
+    "values": {
+     "wheel": {
+      "fl": "delantera izquierda"
+     }
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "enum_values_mismatch"
+  },
+  {
+   "key": "ui.puncture",
+   "source": {
+    "text": "Puncture, {wheel}.",
+    "params": {
+     "wheel": {
+      "kind": "enum",
+      "values": [
+       "fl",
+       "fr"
+      ]
+     }
+    },
+    "values": {
+     "wheel": {
+      "fl": "front left",
+      "fr": "front right"
+     }
+    }
+   },
+   "translation": {
+    "text": "Pinchazo, {wheel}.",
+    "values": {
+     "wheel": {
+      "fl": "a",
+      "fr": "b",
+      "rl": "c"
+     }
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "enum_values_mismatch"
+  },
+  {
+   "key": "ui.puncture",
+   "source": {
+    "text": "Puncture, {wheel}.",
+    "params": {
+     "wheel": {
+      "kind": "enum",
+      "values": [
+       "fl",
+       "fr"
+      ]
+     }
+    },
+    "values": {
+     "wheel": {
+      "fl": "front left",
+      "fr": "front right"
+     }
+    }
+   },
+   "translation": {
+    "text": "Pinchazo, {wheel}.",
+    "values": {
+     "tyre": {
+      "fl": "a",
+      "fr": "b"
+     }
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "enum_values_mismatch"
+  },
+  {
+   "key": "speech.fuel",
+   "source": {
+    "text": "Fuel for {n} laps.",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "Combustible para {n} vueltas.",
+    "forms": {
+     "n": "f"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "speech.fuel",
+   "source": {
+    "text": "Fuel for {n} laps.",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "Combustible para {n} vueltas.",
+    "forms": {
+     "n": "x"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_forms"
+  },
+  {
+   "key": "speech.fuel",
+   "source": {
+    "text": "Fuel for {n} laps.",
+    "params": {
+     "n": "int"
+    }
+   },
+   "translation": {
+    "text": "Combustible para {n} vueltas.",
+    "forms": {
+     "m": "f"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_forms"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se detuvo",
+    "forms": {
+     "app": "f"
+    }
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_forms"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se\u0007 detuvo"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "control_character"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se\ndetuvo"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "control_character"
+  },
+  {
+   "key": "speech.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "too_long"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se detuvo",
+    "source_hash": "ABCDEF012345"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_source_hash"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se detuvo",
+    "source_hash": "abc"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "bad_source_hash"
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se detuvo",
+    "source_hash": "b574c0837324"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": false
+  },
+  {
+   "key": "ui.app",
+   "source": {
+    "text": "{app} stopped",
+    "params": {
+     "app": "text"
+    }
+   },
+   "translation": {
+    "text": "{app} se detuvo",
+    "source_hash": "000000000000"
+   },
+   "plural_rules": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   },
+   "result": "ok",
+   "stale": true
+  },
+  {
+   "key": "ui.count",
+   "source": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   },
+   "translation": {
+    "text": {
+     "one": "{n}",
+     "few": "{n}",
+     "many": "{n}",
+     "other": "{n}"
+    }
+   },
+   "plural_rules": {
+    "one": "v = 0 and i % 10 = 1 and i % 100 != 11 @integer 1, 21, 31",
+    "few": "v = 0 and i % 10 = 2..4 and i % 100 != 12..14",
+    "many": "v = 0 and i % 10 = 0 or v = 0 and i % 10 = 5..9 or v = 0 and i % 100 = 11..14"
+   },
+   "result": "ok",
+   "stale": true
+  }
+ ],
+ "files": [
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es",
+    "messages": {}
+   },
+   "result": "ok"
+  },
+  {
+   "folder": "es-cl",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es-CL",
+    "messages": {}
+   },
+   "result": "ok"
+  },
+  {
+   "folder": "ES",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es",
+    "messages": {}
+   },
+   "result": "ok"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es",
+    "messages": {},
+    "extra": 1
+   },
+   "result": "ok"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "raw": "{\"schema\": ",
+   "result": "not_json"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "raw": "[1, 2]",
+   "result": "not_json"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/2",
+    "catalog": "voice",
+    "language": "es",
+    "messages": {}
+   },
+   "result": "bad_schema"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "catalog": "voice",
+    "language": "es",
+    "messages": {}
+   },
+   "result": "bad_schema"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "hub",
+    "language": "es",
+    "messages": {}
+   },
+   "result": "catalog_mismatch"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "fr",
+    "messages": {}
+   },
+   "result": "language_mismatch"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es-CL",
+    "messages": {}
+   },
+   "result": "language_mismatch"
+  },
+  {
+   "folder": "es",
+   "catalog": "voice",
+   "content": {
+    "schema": "stintmate-catalog/1",
+    "catalog": "voice",
+    "language": "es",
+    "messages": []
+   },
+   "result": "bad_schema"
+  }
+ ],
+ "resolve": {
+  "language": "es-CL",
+  "builtin": {
+   "a.plain": {
+    "text": "Plain"
+   },
+   "a.both": {
+    "text": "Both"
+   },
+   "a.only_es": {
+    "text": "Only es"
+   },
+   "a.bad_cl": {
+    "text": "{n} sets",
+    "params": {
+     "n": "int"
+    }
+   },
+   "a.missing": {
+    "text": "Missing"
+   },
+   "a.count": {
+    "text": {
+     "one": "{n} message",
+     "other": "{n} messages"
+    },
+    "params": {
+     "n": "int"
+    },
+    "plural": "n"
+   }
+  },
+  "packs": {
+   "es-CL": {
+    "a.both": {
+     "text": "Ambos (CL)"
+    },
+    "a.bad_cl": {
+     "text": "juegos"
+    },
+    "a.unknown": {
+     "text": "x"
+    }
+   },
+   "es": {
+    "a.plain": {
+     "text": "Simple"
+    },
+    "a.both": {
+     "text": "Ambos"
+    },
+    "a.only_es": {
+     "text": "Solo es"
+    },
+    "a.bad_cl": {
+     "text": "{n} juegos"
+    },
+    "a.count": {
+     "text": {
+      "one": "{n} mensaje",
+      "many": "{n} de mensajes",
+      "other": "{n} mensajes"
+     }
+    }
+   }
+  },
+  "plural_rules": {
+   "es": {
+    "one": "n = 1",
+    "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+   }
+  },
+  "expected": {
+   "a.plain": "Simple",
+   "a.both": "Ambos (CL)",
+   "a.only_es": "Solo es",
+   "a.bad_cl": "{n} juegos",
+   "a.missing": "Missing"
+  },
+  "expected_plural": [
+   {
+    "key": "a.count",
+    "n": 1,
+    "text": "1 mensaje"
+   },
+   {
+    "key": "a.count",
+    "n": 2,
+    "text": "2 mensajes"
+   },
+   {
+    "key": "a.count",
+    "n": 1000000,
+    "text": "1000000 de mensajes"
+   }
+  ],
+  "rejected": {
+   "es-CL": {
+    "a.bad_cl": "placeholder_mismatch",
+    "a.unknown": "unknown_key"
+   }
+  }
+ },
+ "spoken": [
+  {
+   "numbers": {
+    "schema": "stintmate-numbers/1",
+    "language": "en",
+    "language_name": "English",
+    "plural_rules": {
+     "one": "i = 1 and v = 0"
+    },
+    "words": {
+     "0": "zero",
+     "1": "one",
+     "2": "two",
+     "3": "three",
+     "4": "four",
+     "5": "five",
+     "6": "six",
+     "7": "seven",
+     "8": "eight",
+     "9": "nine",
+     "10": "ten",
+     "11": "eleven",
+     "12": "twelve",
+     "13": "thirteen",
+     "14": "fourteen",
+     "15": "fifteen",
+     "16": "sixteen",
+     "17": "seventeen",
+     "18": "eighteen",
+     "19": "nineteen",
+     "20": "twenty",
+     "30": "thirty",
+     "40": "forty",
+     "50": "fifty",
+     "60": "sixty",
+     "70": "seventy",
+     "80": "eighty",
+     "90": "ninety"
+    },
+    "tens_join": "{tens}-{unit}",
+    "hundreds": {
+     "100": "one hundred",
+     "200": "two hundred",
+     "300": "three hundred",
+     "400": "four hundred",
+     "500": "five hundred",
+     "600": "six hundred",
+     "700": "seven hundred",
+     "800": "eight hundred",
+     "900": "nine hundred"
+    },
+    "hundreds_join": "{hundreds} {rest}",
+    "thousands": "{n} thousand",
+    "thousands_one": "one thousand",
+    "thousands_join": "{thousands} {rest}",
+    "plus": "plus",
+    "minus": "minus",
+    "decimal": "{whole} point {fraction}",
+    "ordinals": {
+     "default": {
+      "1": "first",
+      "2": "second",
+      "3": "third",
+      "4": "fourth",
+      "5": "fifth",
+      "6": "sixth",
+      "7": "seventh",
+      "8": "eighth",
+      "9": "ninth",
+      "10": "tenth",
+      "11": "eleventh",
+      "12": "twelfth",
+      "13": "thirteenth",
+      "14": "fourteenth",
+      "15": "fifteenth",
+      "16": "sixteenth",
+      "17": "seventeenth",
+      "18": "eighteenth",
+      "19": "nineteenth",
+      "20": "twentieth",
+      "21": "twenty-first",
+      "22": "twenty-second",
+      "23": "twenty-third",
+      "24": "twenty-fourth",
+      "25": "twenty-fifth",
+      "26": "twenty-sixth",
+      "27": "twenty-seventh",
+      "28": "twenty-eighth",
+      "29": "twenty-ninth",
+      "30": "thirtieth",
+      "31": "thirty-first",
+      "32": "thirty-second",
+      "33": "thirty-third",
+      "34": "thirty-fourth",
+      "35": "thirty-fifth",
+      "36": "thirty-sixth",
+      "37": "thirty-seventh",
+      "38": "thirty-eighth",
+      "39": "thirty-ninth",
+      "40": "fortieth"
+     }
+    },
+    "units": {
+     "laps": {
+      "one": "lap",
+      "other": "laps"
+     },
+     "litres": {
+      "one": "litre",
+      "other": "litres"
+     },
+     "distance_m": {
+      "one": "metre",
+      "other": "metres"
+     },
+     "speed": {
+      "one": "kilometre per hour",
+      "other": "kilometres per hour"
+     },
+     "temperature": {
+      "one": "degree",
+      "other": "degrees"
+     },
+     "seconds": {
+      "one": "second",
+      "other": "seconds"
+     }
+    },
+    "unit_pattern": "{value} {unit}",
+    "patterns": {
+     "lap_time": "{minutes} {seconds} {tenths}",
+     "lap_time_under_minute": "{seconds} {tenths}",
+     "seconds_padded": "oh {seconds}",
+     "gap": "{sign} {value}"
+    }
+   },
+   "cases": [
+    {
+     "kind": "int",
+     "value": 0,
+     "text": "zero"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "text": "one"
+    },
+    {
+     "kind": "int",
+     "value": 7,
+     "text": "seven"
+    },
+    {
+     "kind": "int",
+     "value": 15,
+     "text": "fifteen"
+    },
+    {
+     "kind": "int",
+     "value": 16,
+     "text": "sixteen"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "text": "twenty-one"
+    },
+    {
+     "kind": "int",
+     "value": 29,
+     "text": "twenty-nine"
+    },
+    {
+     "kind": "int",
+     "value": 30,
+     "text": "thirty"
+    },
+    {
+     "kind": "int",
+     "value": 31,
+     "text": "thirty-one"
+    },
+    {
+     "kind": "int",
+     "value": 42,
+     "text": "forty-two"
+    },
+    {
+     "kind": "int",
+     "value": 56,
+     "text": "fifty-six"
+    },
+    {
+     "kind": "int",
+     "value": 99,
+     "text": "ninety-nine"
+    },
+    {
+     "kind": "int",
+     "value": 100,
+     "text": "one hundred"
+    },
+    {
+     "kind": "int",
+     "value": 101,
+     "text": "one hundred one"
+    },
+    {
+     "kind": "int",
+     "value": 121,
+     "text": "one hundred twenty-one"
+    },
+    {
+     "kind": "int",
+     "value": 200,
+     "text": "two hundred"
+    },
+    {
+     "kind": "int",
+     "value": 999,
+     "text": "nine hundred ninety-nine"
+    },
+    {
+     "kind": "int",
+     "value": 1000,
+     "text": "one thousand"
+    },
+    {
+     "kind": "int",
+     "value": 1001,
+     "text": "one thousand one"
+    },
+    {
+     "kind": "int",
+     "value": 2021,
+     "text": "two thousand twenty-one"
+    },
+    {
+     "kind": "int",
+     "value": 21000,
+     "text": "twenty-one thousand"
+    },
+    {
+     "kind": "int",
+     "value": 31000,
+     "text": "thirty-one thousand"
+    },
+    {
+     "kind": "int",
+     "value": 999999,
+     "text": "nine hundred ninety-nine thousand nine hundred ninety-nine"
+    },
+    {
+     "kind": "int",
+     "value": 1000000,
+     "text": "1000000"
+    },
+    {
+     "kind": "int",
+     "value": -3,
+     "text": "minus three"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "m",
+     "text": "one"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "f",
+     "text": "one"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "gender": "m",
+     "text": "twenty-one"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "gender": "f",
+     "text": "twenty-one"
+    },
+    {
+     "kind": "int",
+     "value": 31,
+     "gender": "f",
+     "text": "thirty-one"
+    },
+    {
+     "kind": "int",
+     "value": 200,
+     "gender": "f",
+     "text": "two hundred"
+    },
+    {
+     "kind": "int",
+     "value": 201,
+     "gender": "f",
+     "text": "two hundred one"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "n",
+     "text": "one"
+    },
+    {
+     "kind": "decimal",
+     "value": 0.2,
+     "digits": 1,
+     "text": "zero point two"
+    },
+    {
+     "kind": "decimal",
+     "value": 1.25,
+     "digits": 1,
+     "text": "one point three"
+    },
+    {
+     "kind": "decimal",
+     "value": 12.5,
+     "digits": 1,
+     "text": "twelve point five"
+    },
+    {
+     "kind": "decimal",
+     "value": 3.0,
+     "digits": 1,
+     "text": "three point zero"
+    },
+    {
+     "kind": "decimal",
+     "value": 0.05,
+     "digits": 2,
+     "text": "zero point zero five"
+    },
+    {
+     "kind": "decimal",
+     "value": -0.2,
+     "digits": 1,
+     "text": "minus zero point two"
+    },
+    {
+     "kind": "gap",
+     "value": 0.2,
+     "text": "plus zero point two"
+    },
+    {
+     "kind": "gap",
+     "value": -0.2,
+     "text": "minus zero point two"
+    },
+    {
+     "kind": "gap",
+     "value": 1.24,
+     "text": "plus one point two"
+    },
+    {
+     "kind": "gap",
+     "value": -1.25,
+     "text": "minus one point three"
+    },
+    {
+     "kind": "gap",
+     "value": 0.0,
+     "text": "zero point zero"
+    },
+    {
+     "kind": "gap",
+     "value": 0.04,
+     "text": "zero point zero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.59,
+     "text": "one fifty-six five"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.5999999,
+     "text": "one fifty-six six"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.59999,
+     "text": "one fifty-six five"
+    },
+    {
+     "kind": "lap_time",
+     "value": 59.99,
+     "text": "fifty-nine nine"
+    },
+    {
+     "kind": "lap_time",
+     "value": 65.3,
+     "text": "one oh five three"
+    },
+    {
+     "kind": "lap_time",
+     "value": 5.4,
+     "text": "five four"
+    },
+    {
+     "kind": "lap_time",
+     "value": 60.0,
+     "text": "one oh zero zero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 125.06,
+     "text": "two oh five zero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 600.0,
+     "text": "ten oh zero zero"
+    },
+    {
+     "kind": "ordinal",
+     "value": 1,
+     "text": "first"
+    },
+    {
+     "kind": "ordinal",
+     "value": 3,
+     "text": "third"
+    },
+    {
+     "kind": "ordinal",
+     "value": 3,
+     "text": "third",
+     "gender": "f"
+    },
+    {
+     "kind": "ordinal",
+     "value": 21,
+     "text": "twenty-first"
+    },
+    {
+     "kind": "ordinal",
+     "value": 40,
+     "text": "fortieth"
+    },
+    {
+     "kind": "ordinal",
+     "value": 41,
+     "text": "forty-one"
+    },
+    {
+     "kind": "laps",
+     "value": 1,
+     "text": "one lap"
+    },
+    {
+     "kind": "laps",
+     "value": 3,
+     "text": "three laps"
+    },
+    {
+     "kind": "laps",
+     "value": 21,
+     "text": "twenty-one laps"
+    },
+    {
+     "kind": "litres",
+     "value": 1,
+     "text": "one litre"
+    },
+    {
+     "kind": "litres",
+     "value": 21,
+     "text": "twenty-one litres"
+    },
+    {
+     "kind": "litres",
+     "value": 12.5,
+     "text": "twelve point five litres"
+    },
+    {
+     "kind": "distance_m",
+     "value": 150,
+     "text": "one hundred fifty metres"
+    },
+    {
+     "kind": "speed",
+     "value": 212,
+     "text": "two hundred twelve kilometres per hour"
+    },
+    {
+     "kind": "temperature",
+     "value": 85,
+     "text": "eighty-five degrees"
+    },
+    {
+     "kind": "temperature",
+     "value": 1,
+     "text": "one degree"
+    }
+   ]
+  },
+  {
+   "numbers": {
+    "schema": "stintmate-numbers/1",
+    "language": "es",
+    "language_name": "Español",
+    "plural_rules": {
+     "one": "n = 1",
+     "many": "e = 0 and i != 0 and i % 1000000 = 0 and v = 0 or e != 0..5"
+    },
+    "words": {
+     "0": "cero",
+     "1": "uno",
+     "2": "dos",
+     "3": "tres",
+     "4": "cuatro",
+     "5": "cinco",
+     "6": "seis",
+     "7": "siete",
+     "8": "ocho",
+     "9": "nueve",
+     "10": "diez",
+     "11": "once",
+     "12": "doce",
+     "13": "trece",
+     "14": "catorce",
+     "15": "quince",
+     "16": "dieciséis",
+     "17": "diecisiete",
+     "18": "dieciocho",
+     "19": "diecinueve",
+     "20": "veinte",
+     "21": "veintiuno",
+     "22": "veintidós",
+     "23": "veintitrés",
+     "24": "veinticuatro",
+     "25": "veinticinco",
+     "26": "veintiséis",
+     "27": "veintisiete",
+     "28": "veintiocho",
+     "29": "veintinueve",
+     "30": "treinta",
+     "40": "cuarenta",
+     "50": "cincuenta",
+     "60": "sesenta",
+     "70": "setenta",
+     "80": "ochenta",
+     "90": "noventa"
+    },
+    "tens_join": "{tens} y {unit}",
+    "hundreds": {
+     "100": "ciento",
+     "200": "doscientos",
+     "300": "trescientos",
+     "400": "cuatrocientos",
+     "500": "quinientos",
+     "600": "seiscientos",
+     "700": "setecientos",
+     "800": "ochocientos",
+     "900": "novecientos"
+    },
+    "exact": {
+     "100": "cien"
+    },
+    "hundreds_join": "{hundreds} {rest}",
+    "thousands": "{n} mil",
+    "thousands_one": "mil",
+    "thousands_join": "{thousands} {rest}",
+    "thousands_gender": "m",
+    "gender_forms": {
+     "m": {
+      "1": "un",
+      "21": "veintiún"
+     },
+     "f": {
+      "1": "una",
+      "21": "veintiuna",
+      "200": "doscientas",
+      "300": "trescientas",
+      "400": "cuatrocientas",
+      "500": "quinientas",
+      "600": "seiscientas",
+      "700": "setecientas",
+      "800": "ochocientas",
+      "900": "novecientas"
+     }
+    },
+    "plus": "más",
+    "minus": "menos",
+    "decimal": "{whole} coma {fraction}",
+    "ordinals": {
+     "default": {
+      "1": "primero",
+      "2": "segundo",
+      "3": "tercero",
+      "4": "cuarto",
+      "5": "quinto",
+      "6": "sexto",
+      "7": "séptimo",
+      "8": "octavo",
+      "9": "noveno",
+      "10": "décimo",
+      "11": "undécimo",
+      "12": "duodécimo",
+      "13": "decimotercero",
+      "14": "decimocuarto",
+      "15": "decimoquinto",
+      "16": "decimosexto",
+      "17": "decimoséptimo",
+      "18": "decimoctavo",
+      "19": "decimonoveno",
+      "20": "vigésimo",
+      "21": "vigésimo primero",
+      "22": "vigésimo segundo",
+      "23": "vigésimo tercero",
+      "24": "vigésimo cuarto",
+      "25": "vigésimo quinto",
+      "26": "vigésimo sexto",
+      "27": "vigésimo séptimo",
+      "28": "vigésimo octavo",
+      "29": "vigésimo noveno",
+      "30": "trigésimo",
+      "31": "trigésimo primero",
+      "32": "trigésimo segundo",
+      "33": "trigésimo tercero",
+      "34": "trigésimo cuarto",
+      "35": "trigésimo quinto",
+      "36": "trigésimo sexto",
+      "37": "trigésimo séptimo",
+      "38": "trigésimo octavo",
+      "39": "trigésimo noveno",
+      "40": "cuadragésimo"
+     },
+     "f": {
+      "1": "primera",
+      "2": "segunda",
+      "3": "tercera",
+      "4": "cuarta",
+      "5": "quinta",
+      "6": "sexta",
+      "7": "séptima",
+      "8": "octava",
+      "9": "novena",
+      "10": "décima",
+      "11": "undécima",
+      "12": "duodécima",
+      "13": "decimotercera",
+      "14": "decimocuarta",
+      "15": "decimoquinta",
+      "16": "decimosexta",
+      "17": "decimoséptima",
+      "18": "decimoctava",
+      "19": "decimonovena",
+      "20": "vigésima",
+      "21": "vigésima primera",
+      "22": "vigésima segunda",
+      "23": "vigésima tercera",
+      "24": "vigésima cuarta",
+      "25": "vigésima quinta",
+      "26": "vigésima sexta",
+      "27": "vigésima séptima",
+      "28": "vigésima octava",
+      "29": "vigésima novena",
+      "30": "trigésima",
+      "31": "trigésima primera",
+      "32": "trigésima segunda",
+      "33": "trigésima tercera",
+      "34": "trigésima cuarta",
+      "35": "trigésima quinta",
+      "36": "trigésima sexta",
+      "37": "trigésima séptima",
+      "38": "trigésima octava",
+      "39": "trigésima novena",
+      "40": "cuadragésima"
+     }
+    },
+    "units": {
+     "laps": {
+      "one": "vuelta",
+      "other": "vueltas",
+      "gender": "f"
+     },
+     "litres": {
+      "one": "litro",
+      "other": "litros",
+      "gender": "m"
+     },
+     "distance_m": {
+      "one": "metro",
+      "other": "metros",
+      "gender": "m"
+     },
+     "speed": {
+      "one": "kilómetro por hora",
+      "other": "kilómetros por hora",
+      "gender": "m"
+     },
+     "temperature": {
+      "one": "grado",
+      "other": "grados",
+      "gender": "m"
+     },
+     "seconds": {
+      "one": "segundo",
+      "other": "segundos",
+      "gender": "m"
+     }
+    },
+    "unit_pattern": "{value} {unit}",
+    "patterns": {
+     "lap_time": "{minutes} {seconds} {tenths}",
+     "lap_time_under_minute": "{seconds} {tenths}",
+     "seconds_padded": "cero {seconds}",
+     "gap": "{sign} {value}"
+    }
+   },
+   "cases": [
+    {
+     "kind": "int",
+     "value": 0,
+     "text": "cero"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "text": "uno"
+    },
+    {
+     "kind": "int",
+     "value": 7,
+     "text": "siete"
+    },
+    {
+     "kind": "int",
+     "value": 15,
+     "text": "quince"
+    },
+    {
+     "kind": "int",
+     "value": 16,
+     "text": "dieciséis"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "text": "veintiuno"
+    },
+    {
+     "kind": "int",
+     "value": 29,
+     "text": "veintinueve"
+    },
+    {
+     "kind": "int",
+     "value": 30,
+     "text": "treinta"
+    },
+    {
+     "kind": "int",
+     "value": 31,
+     "text": "treinta y uno"
+    },
+    {
+     "kind": "int",
+     "value": 42,
+     "text": "cuarenta y dos"
+    },
+    {
+     "kind": "int",
+     "value": 56,
+     "text": "cincuenta y seis"
+    },
+    {
+     "kind": "int",
+     "value": 99,
+     "text": "noventa y nueve"
+    },
+    {
+     "kind": "int",
+     "value": 100,
+     "text": "cien"
+    },
+    {
+     "kind": "int",
+     "value": 101,
+     "text": "ciento uno"
+    },
+    {
+     "kind": "int",
+     "value": 121,
+     "text": "ciento veintiuno"
+    },
+    {
+     "kind": "int",
+     "value": 200,
+     "text": "doscientos"
+    },
+    {
+     "kind": "int",
+     "value": 999,
+     "text": "novecientos noventa y nueve"
+    },
+    {
+     "kind": "int",
+     "value": 1000,
+     "text": "mil"
+    },
+    {
+     "kind": "int",
+     "value": 1001,
+     "text": "mil uno"
+    },
+    {
+     "kind": "int",
+     "value": 2021,
+     "text": "dos mil veintiuno"
+    },
+    {
+     "kind": "int",
+     "value": 21000,
+     "text": "veintiún mil"
+    },
+    {
+     "kind": "int",
+     "value": 31000,
+     "text": "treinta y un mil"
+    },
+    {
+     "kind": "int",
+     "value": 999999,
+     "text": "novecientos noventa y nueve mil novecientos noventa y nueve"
+    },
+    {
+     "kind": "int",
+     "value": 1000000,
+     "text": "1000000"
+    },
+    {
+     "kind": "int",
+     "value": -3,
+     "text": "menos tres"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "m",
+     "text": "un"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "f",
+     "text": "una"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "gender": "m",
+     "text": "veintiún"
+    },
+    {
+     "kind": "int",
+     "value": 21,
+     "gender": "f",
+     "text": "veintiuna"
+    },
+    {
+     "kind": "int",
+     "value": 31,
+     "gender": "f",
+     "text": "treinta y una"
+    },
+    {
+     "kind": "int",
+     "value": 200,
+     "gender": "f",
+     "text": "doscientas"
+    },
+    {
+     "kind": "int",
+     "value": 201,
+     "gender": "f",
+     "text": "doscientas una"
+    },
+    {
+     "kind": "int",
+     "value": 1,
+     "gender": "n",
+     "text": "uno"
+    },
+    {
+     "kind": "decimal",
+     "value": 0.2,
+     "digits": 1,
+     "text": "cero coma dos"
+    },
+    {
+     "kind": "decimal",
+     "value": 1.25,
+     "digits": 1,
+     "text": "uno coma tres"
+    },
+    {
+     "kind": "decimal",
+     "value": 12.5,
+     "digits": 1,
+     "text": "doce coma cinco"
+    },
+    {
+     "kind": "decimal",
+     "value": 3.0,
+     "digits": 1,
+     "text": "tres coma cero"
+    },
+    {
+     "kind": "decimal",
+     "value": 0.05,
+     "digits": 2,
+     "text": "cero coma cero cinco"
+    },
+    {
+     "kind": "decimal",
+     "value": -0.2,
+     "digits": 1,
+     "text": "menos cero coma dos"
+    },
+    {
+     "kind": "gap",
+     "value": 0.2,
+     "text": "más cero coma dos"
+    },
+    {
+     "kind": "gap",
+     "value": -0.2,
+     "text": "menos cero coma dos"
+    },
+    {
+     "kind": "gap",
+     "value": 1.24,
+     "text": "más uno coma dos"
+    },
+    {
+     "kind": "gap",
+     "value": -1.25,
+     "text": "menos uno coma tres"
+    },
+    {
+     "kind": "gap",
+     "value": 0.0,
+     "text": "cero coma cero"
+    },
+    {
+     "kind": "gap",
+     "value": 0.04,
+     "text": "cero coma cero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.59,
+     "text": "uno cincuenta y seis cinco"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.5999999,
+     "text": "uno cincuenta y seis seis"
+    },
+    {
+     "kind": "lap_time",
+     "value": 116.59999,
+     "text": "uno cincuenta y seis cinco"
+    },
+    {
+     "kind": "lap_time",
+     "value": 59.99,
+     "text": "cincuenta y nueve nueve"
+    },
+    {
+     "kind": "lap_time",
+     "value": 65.3,
+     "text": "uno cero cinco tres"
+    },
+    {
+     "kind": "lap_time",
+     "value": 5.4,
+     "text": "cinco cuatro"
+    },
+    {
+     "kind": "lap_time",
+     "value": 60.0,
+     "text": "uno cero cero cero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 125.06,
+     "text": "dos cero cinco cero"
+    },
+    {
+     "kind": "lap_time",
+     "value": 600.0,
+     "text": "diez cero cero cero"
+    },
+    {
+     "kind": "ordinal",
+     "value": 1,
+     "text": "primero"
+    },
+    {
+     "kind": "ordinal",
+     "value": 3,
+     "text": "tercero"
+    },
+    {
+     "kind": "ordinal",
+     "value": 3,
+     "text": "tercera",
+     "gender": "f"
+    },
+    {
+     "kind": "ordinal",
+     "value": 21,
+     "text": "vigésimo primero"
+    },
+    {
+     "kind": "ordinal",
+     "value": 40,
+     "text": "cuadragésimo"
+    },
+    {
+     "kind": "ordinal",
+     "value": 41,
+     "text": "cuarenta y uno"
+    },
+    {
+     "kind": "laps",
+     "value": 1,
+     "text": "una vuelta"
+    },
+    {
+     "kind": "laps",
+     "value": 3,
+     "text": "tres vueltas"
+    },
+    {
+     "kind": "laps",
+     "value": 21,
+     "text": "veintiuna vueltas"
+    },
+    {
+     "kind": "litres",
+     "value": 1,
+     "text": "un litro"
+    },
+    {
+     "kind": "litres",
+     "value": 21,
+     "text": "veintiún litros"
+    },
+    {
+     "kind": "litres",
+     "value": 12.5,
+     "text": "doce coma cinco litros"
+    },
+    {
+     "kind": "distance_m",
+     "value": 150,
+     "text": "ciento cincuenta metros"
+    },
+    {
+     "kind": "speed",
+     "value": 212,
+     "text": "doscientos doce kilómetros por hora"
+    },
+    {
+     "kind": "temperature",
+     "value": 85,
+     "text": "ochenta y cinco grados"
+    },
+    {
+     "kind": "temperature",
+     "value": 1,
+     "text": "un grado"
+    }
+   ]
+  }
+ ]
+}
