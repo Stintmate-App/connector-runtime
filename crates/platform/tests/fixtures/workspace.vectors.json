@@ -1,0 +1,523 @@
+{
+  "contract": "stintmate-workspace",
+  "version": 1,
+  "description": "Resolver test vectors for docs/workspace.md (contract v1). Copy this file into each app's tests; every resolver must give exactly 'expect' for every case. Conventions: argv_workspace = the --workspace value (null = not given); env = the process environment (names compared case-insensitively; a variable not listed is not set); pointer = the pointer file: {state: absent} or {state: present} with 'json' (the parsed content) or 'raw' (the exact text, for corrupt files and BOMs); fs = what exists, keyed by normalised absolute path (compared case-insensitively; anything not listed does not exist): kind dir|file, for a dir 'manifest' = 'valid' (a valid v1 stintmate.json) | 'absent' | {json} | {raw}, and 'attributes' = Windows file attribute names without the FILE_ATTRIBUTE_ prefix; allow_synced_flag = --allow-synced given. expect = {path, source, synced} or {error, source}; '<legacy>' stands for the app's own legacy folder.",
+  "cases": [
+    {
+      "id": "legacy_nothing_set",
+      "description": "No argument, no variable, no pointer file: the app's legacy location.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "<legacy>", "source": "legacy", "synced": false}
+    },
+    {
+      "id": "pointer_basic",
+      "description": "Only the pointer file.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "env_only",
+      "description": "Only STINTMATE_WORKSPACE.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "D:\\Racing\\Stintmate"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "argv_only",
+      "description": "Only --workspace.",
+      "input": {"argv_workspace": "E:\\Sim\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "E:\\Sim\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "env_beats_pointer",
+      "description": "The variable wins over the pointer file.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "D:\\Racing\\Stintmate"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "argv_beats_env_and_pointer",
+      "description": "--workspace wins over everything.",
+      "input": {"argv_workspace": "E:\\Sim\\Stintmate", "env": {"STINTMATE_WORKSPACE": "D:\\Racing\\Stintmate"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "E:\\Sim\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "argv_ignores_corrupt_pointer",
+      "description": "A lower source is never read: a corrupt pointer does not block --workspace.",
+      "input": {"argv_workspace": "E:\\Sim\\Stintmate", "env": {}, "pointer": {"state": "present", "raw": "{not json"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "E:\\Sim\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "env_ignores_corrupt_pointer",
+      "description": "A corrupt pointer does not block STINTMATE_WORKSPACE.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "D:\\Racing\\Stintmate"}, "pointer": {"state": "present", "raw": "{not json"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "argv_ignores_missing_env_dir",
+      "description": "--workspace wins even when the variable names a missing folder (the variable is not checked).",
+      "input": {"argv_workspace": "E:\\Sim\\Stintmate", "env": {"STINTMATE_WORKSPACE": "Z:\\Nowhere"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "E:\\Sim\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "env_empty_is_unset",
+      "description": "An empty variable counts as not set: the pointer is used.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": ""}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "env_whitespace_is_unset",
+      "description": "A whitespace-only variable counts as not set: legacy when there is no pointer.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "   "}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "<legacy>", "source": "legacy", "synced": false}
+    },
+    {
+      "id": "env_name_case_insensitive",
+      "description": "Windows variable names are case-insensitive.",
+      "input": {"argv_workspace": null, "env": {"stintmate_workspace": "D:\\Racing\\Stintmate"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "argv_empty_is_error",
+      "description": "An explicit but empty --workspace is an error, never a fallback.",
+      "input": {"argv_workspace": "", "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "argv_whitespace_is_error",
+      "description": "A whitespace-only --workspace is an error.",
+      "input": {"argv_workspace": "  ", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "pointer_corrupt_json",
+      "description": "A pointer file that is not JSON is an error, never legacy.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "raw": "{\"schema\": 1, \"workspace\": "}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_empty_file",
+      "description": "An empty pointer file is an error.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "raw": ""}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_not_object",
+      "description": "The pointer must be a JSON object.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "raw": "[]"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_no_schema",
+      "description": "schema is required.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_schema_not_int",
+      "description": "schema must be an integer.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": "1", "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_schema_zero",
+      "description": "schema starts at 1.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 0, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_future_schema",
+      "description": "A schema newer than the reader knows is refused, not guessed.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 2, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_unsupported", "source": "pointer"}
+    },
+    {
+      "id": "pointer_no_workspace",
+      "description": "workspace is required.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_workspace_null",
+      "description": "workspace must be a string.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": null}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_workspace_empty",
+      "description": "workspace must not be empty.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": ""}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_allow_synced_not_bool",
+      "description": "allow_synced, when present, must be a boolean.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate", "allow_synced": "yes"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "pointer_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_with_bom",
+      "description": "A UTF-8 byte order mark at the start of the pointer file is accepted.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "raw": "\ufeff{\"schema\": 1, \"workspace\": \"C:\\\\Users\\\\u\\\\Documents\\\\Stintmate\"}"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "pointer_unknown_keys",
+      "description": "Unknown keys are ignored on read (and kept on rewrite).",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate", "hub": {"start_at_logon": true}, "last_onboarding": "2026-10-18"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "pointer_forward_slashes",
+      "description": "The pointer's path is normalised like any other source.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:/Users/u/Documents/Stintmate/"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "pointer_relative",
+      "description": "A relative path in the pointer is an invalid workspace (source pointer).",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_env_var_not_expanded",
+      "description": "Variables are never expanded: %USERPROFILE% stays literal and is not an absolute path.",
+      "input": {"argv_workspace": null, "env": {"USERPROFILE": "C:\\Users\\u"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "%USERPROFILE%\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "pointer"}
+    },
+    {
+      "id": "pointer_dir_missing",
+      "description": "The pointer names a folder that does not exist: error, never legacy.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Gone"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_missing", "source": "pointer"}
+    },
+    {
+      "id": "env_dir_missing",
+      "description": "The variable names a folder that does not exist.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "Z:\\Nowhere"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_missing", "source": "env"}
+    },
+    {
+      "id": "argv_dir_missing",
+      "description": "--workspace names a folder that does not exist.",
+      "input": {"argv_workspace": "Z:\\Nowhere", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_missing", "source": "argv"}
+    },
+    {
+      "id": "path_is_a_file",
+      "description": "The path exists but is a file.",
+      "input": {"argv_workspace": "C:\\Users\\u\\Documents\\Stintmate.txt", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\Documents\\Stintmate.txt": {"kind": "file"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "relative_name",
+      "description": "Relative paths are rejected (apps start from any directory, e.g. at logon).",
+      "input": {"argv_workspace": "Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "relative_dot",
+      "description": "Relative with a dot.",
+      "input": {"argv_workspace": ".\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "relative_parent",
+      "description": "Relative with a parent segment.",
+      "input": {"argv_workspace": "..\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "drive_relative",
+      "description": "Drive-relative (no separator after the colon).",
+      "input": {"argv_workspace": "C:Users\\u\\Documents\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "root_relative",
+      "description": "Root-relative (no drive).",
+      "input": {"argv_workspace": "\\Users\\u\\Documents\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "unc_path",
+      "description": "Network paths are not supported.",
+      "input": {"argv_workspace": "\\\\server\\share\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "device_path",
+      "description": "Device and extended-length prefixes are not accepted.",
+      "input": {"argv_workspace": "\\\\?\\C:\\Users\\u\\Documents\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "tilde_not_expanded",
+      "description": "~ is not expanded.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "~\\Documents\\Stintmate"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "env"}
+    },
+    {
+      "id": "drive_root",
+      "description": "A drive root is not a workspace.",
+      "input": {"argv_workspace": "D:\\", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "drive_root_dot_segments",
+      "description": "Normalising to a drive root is still a drive root.",
+      "input": {"argv_workspace": "D:\\Racing\\..", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "invalid_character",
+      "description": "Characters not allowed in Windows names.",
+      "input": {"argv_workspace": "C:\\Users\\u\\Stint|mate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "colon_after_drive",
+      "description": "A second colon is not allowed.",
+      "input": {"argv_workspace": "C:\\Users\\u\\Stint:mate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_invalid", "source": "argv"}
+    },
+    {
+      "id": "trailing_backslash",
+      "description": "A trailing separator is removed.",
+      "input": {"argv_workspace": "C:\\Users\\u\\Documents\\Stintmate\\", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "trailing_slashes_and_doubles",
+      "description": "Repeated separators collapse.",
+      "input": {"argv_workspace": "C:\\Users\\u\\\\Documents\\Stintmate\\\\", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "forward_slashes",
+      "description": "Forward slashes become backslashes.",
+      "input": {"argv_workspace": "C:/Users/u/Documents/Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "mixed_slashes_trailing",
+      "description": "Mixed separators and a trailing slash.",
+      "input": {"argv_workspace": "C:\\Users/u\\Documents/Stintmate/", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "lowercase_drive",
+      "description": "The drive letter is upper-cased; the rest keeps the case as given.",
+      "input": {"argv_workspace": "c:\\users\\U\\documents\\stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\users\\U\\documents\\stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "dot_segments",
+      "description": "'.' and '..' segments are resolved lexically (no symlink resolution).",
+      "input": {"argv_workspace": "C:\\Users\\u\\Documents\\.\\Other\\..\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "parent_above_root",
+      "description": "'..' at the root is dropped.",
+      "input": {"argv_workspace": "C:\\..\\Users\\u\\Documents\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "quoted_env",
+      "description": "One pair of surrounding double quotes is removed (cmd's set X=\"...\").",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "\"D:\\Racing\\Stintmate\""}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "whitespace_env",
+      "description": "Surrounding whitespace is removed.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "  D:\\Racing\\Stintmate "}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "env", "synced": false}
+    },
+    {
+      "id": "quoted_argv_trailing",
+      "description": "Quotes and a trailing separator together.",
+      "input": {"argv_workspace": "\"E:\\Sim\\Stintmate\\\"", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "E:\\Sim\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "onedrive_env_synced",
+      "description": "A workspace under %OneDrive% is refused.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "pointer"}
+    },
+    {
+      "id": "onedrive_consumer_synced",
+      "description": "Under %OneDriveConsumer%.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "env": {"OneDriveConsumer": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "onedrive_commercial_case_and_slash",
+      "description": "Under %OneDriveCommercial%, compared case-insensitively after normalising it.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive - Team\\Stintmate", "env": {"OneDriveCommercial": "c:/users/U/onedrive - team/"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive - Team\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "onedrive_root_itself",
+      "description": "The sync root itself is synced.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive", "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "onedrive_prefix_not_component",
+      "description": "A prefix match must end on a folder boundary.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDriveBackup\\Stintmate", "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDriveBackup\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\OneDriveBackup\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "onedrive_env_elsewhere",
+      "description": "OneDrive set but the workspace is outside it.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "onedrive_env_empty",
+      "description": "An empty sync variable is ignored.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": ""}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "onedrive_env_not_absolute",
+      "description": "A sync variable that is not an absolute path is ignored.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "placeholder_attr_on_dir",
+      "description": "Cloud placeholder attribute on the workspace folder (no sync variable set).",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid", "attributes": ["RECALL_ON_DATA_ACCESS"]}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "recall_on_open_attr",
+      "description": "RECALL_ON_OPEN on the folder.",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid", "attributes": ["DIRECTORY", "RECALL_ON_OPEN"]}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "pinned_attr_on_ancestor",
+      "description": "A cloud attribute on any ancestor folder (here PINNED, 'always keep on this device').",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing": {"kind": "dir", "attributes": ["PINNED"]}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "unpinned_attr_on_ancestor",
+      "description": "UNPINNED on an ancestor.",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing": {"kind": "dir", "attributes": ["UNPINNED"]}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "unrelated_attributes",
+      "description": "Other attributes (read-only, hidden, offline) are not a sync marker.",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid", "attributes": ["READONLY", "HIDDEN", "OFFLINE", "DIRECTORY"]}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "allow_synced_flag",
+      "description": "--allow-synced accepts a synced workspace; the result says synced.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": true},
+      "expect": {"path": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "source": "argv", "synced": true}
+    },
+    {
+      "id": "allow_synced_env",
+      "description": "STINTMATE_ALLOW_SYNCED=1 accepts it too.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "OneDrive": "C:\\Users\\u\\OneDrive", "STINTMATE_ALLOW_SYNCED": "1"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "source": "env", "synced": true}
+    },
+    {
+      "id": "allow_synced_env_not_one",
+      "description": "Only the value 1 enables the variable.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "OneDrive": "C:\\Users\\u\\OneDrive", "STINTMATE_ALLOW_SYNCED": "true"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "env"}
+    },
+    {
+      "id": "allow_synced_pointer",
+      "description": "The pointer's allow_synced (the onboarding's checkbox) accepts its own workspace.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "allow_synced": true}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "source": "pointer", "synced": true}
+    },
+    {
+      "id": "allow_synced_pointer_not_for_env",
+      "description": "The pointer's consent covers only the pointer's workspace, not one from the variable.",
+      "input": {"argv_workspace": null, "env": {"STINTMATE_WORKSPACE": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "allow_synced": true}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "env"}
+    },
+    {
+      "id": "allow_synced_pointer_false",
+      "description": "allow_synced false is the default.",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "allow_synced": false}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "pointer"}
+    },
+    {
+      "id": "allow_synced_not_needed",
+      "description": "allow_synced on a folder that is not synced: synced false.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "C:\\Users\\u\\Documents\\Stintmate", "allow_synced": true}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\Users\\u\\Documents\\Stintmate", "source": "pointer", "synced": false}
+    },
+    {
+      "id": "missing_before_synced",
+      "description": "A missing folder is reported as missing even under OneDrive.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive\\Gone", "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive": {"kind": "dir"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_missing", "source": "argv"}
+    },
+    {
+      "id": "synced_before_manifest",
+      "description": "The sync check comes before the manifest check.",
+      "input": {"argv_workspace": "C:\\Users\\u\\OneDrive\\Documents\\Stintmate", "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}, "C:\\Users\\u\\OneDrive\\Documents\\Stintmate": {"kind": "dir", "manifest": "absent"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_synced", "source": "argv"}
+    },
+    {
+      "id": "legacy_never_sync_checked",
+      "description": "The legacy fallback is not checked (today's behaviour).",
+      "input": {"argv_workspace": null, "env": {"OneDrive": "C:\\Users\\u\\OneDrive"}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "<legacy>", "source": "legacy", "synced": false}
+    },
+    {
+      "id": "manifest_absent",
+      "description": "A folder without stintmate.json is not a workspace (yet).",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "absent"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "workspace_uninitialized", "source": "argv"}
+    },
+    {
+      "id": "manifest_corrupt",
+      "description": "stintmate.json that is not JSON.",
+      "input": {"argv_workspace": null, "env": {}, "pointer": {"state": "present", "json": {"schema": 1, "workspace": "D:\\Racing\\Stintmate"}}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": {"raw": "{\"schema\":"}}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "manifest_invalid", "source": "pointer"}
+    },
+    {
+      "id": "manifest_not_object",
+      "description": "stintmate.json must be an object.",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": {"raw": "1"}}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "manifest_invalid", "source": "argv"}
+    },
+    {
+      "id": "manifest_no_schema",
+      "description": "stintmate.json without schema.",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": {"json": {"created_at": "2026-10-18T12:00:00+02:00"}}}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "manifest_invalid", "source": "argv"}
+    },
+    {
+      "id": "manifest_future_schema",
+      "description": "A newer manifest is refused (do not write into a layout you do not know).",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": {"json": {"schema": 2, "created_at": "2027-01-01T00:00:00+01:00"}}}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"error": "manifest_unsupported", "source": "argv"}
+    },
+    {
+      "id": "manifest_with_bom_and_agent",
+      "description": "A manifest with a BOM, the agent block and unknown keys is fine (the resolver checks only schema).",
+      "input": {"argv_workspace": "D:\\Racing\\Stintmate", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": {"raw": "\ufeff{\"schema\": 1, \"created_at\": \"2026-10-18T12:00:00+02:00\", \"agent\": {\"profile\": \"claude-code\", \"extra_args\": [\"--chrome\"]}, \"future_key\": {\"x\": 1}}"}}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "D:\\Racing\\Stintmate", "source": "argv", "synced": false}
+    },
+    {
+      "id": "fs_lookup_case_insensitive",
+      "description": "Folder lookup ignores case (NTFS default); the path returned is the normalised input.",
+      "input": {"argv_workspace": "C:\\USERS\\U\\DOCUMENTS\\STINTMATE", "env": {}, "pointer": {"state": "absent"}, "fs": {"C:\\Users\\u\\Documents\\Stintmate": {"kind": "dir", "manifest": "valid"}, "D:\\Racing\\Stintmate": {"kind": "dir", "manifest": "valid"}, "E:\\Sim\\Stintmate": {"kind": "dir", "manifest": "valid"}}, "allow_synced_flag": false},
+      "expect": {"path": "C:\\USERS\\U\\DOCUMENTS\\STINTMATE", "source": "argv", "synced": false}
+    }
+  ]
+}
