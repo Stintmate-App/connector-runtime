@@ -4,7 +4,7 @@
 //! [`spec::ConnectorSpec`].
 //!
 //! - [`spec`]: the connector's identity (names, product key, game) and its validation;
-//! - [`workspace`]: the Stintmate workspace resolver (contract v1) and [`location`], the
+//! - [`workspace`]: the Stintmate workspace resolver (Stintmate IPC SPEC section 4.3) and [`location`], the
 //!   connector's data folder;
 //! - [`logging`]: `tracing` to `<data>\<name>.log`, the line format `date time LEVEL target: message`,
 //!   non-blocking, with a size cap;

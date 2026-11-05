@@ -1,5 +1,5 @@
 //! Loading a language from the workspace: `<workspace>/locales/<tag>/<catalog id>.json`
-//! packs along the chain, over the embedded English (catalogs contract sections 6 and 9).
+//! packs along the chain, over the embedded English (connector kit, catalogs.md sections 6 and 9).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -12,7 +12,7 @@ use crate::plural::{PluralRules, rules_from_value, valid_rules};
 use crate::reason::Reason;
 use crate::tag::{chain, normalize_tag};
 
-/// The workspace's language setting (docs/workspace.md 5.6), relative to the workspace.
+/// The language setting in the workspace (the `language` field), relative to the workspace.
 pub const LANGUAGE_FILE: [&str; 2] = ["hub", "settings.json"];
 
 /// A catalog and what went wrong while loading it (for the caller to log once).

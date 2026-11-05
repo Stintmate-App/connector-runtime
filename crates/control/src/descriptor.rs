@@ -2,7 +2,7 @@
 //! `%LOCALAPPDATA%\Stintmate\connectors\example.json`.
 //!
 //! How a managing app finds the connectors installed on this machine without knowing any
-//! simulator (workspace contract, section 5.5). Written by this connector only: by its setup
+//! simulator (the connector kit's descriptor.md). Written by this connector only: by its setup
 //! and by `example-connector-ui --register`, which writes it atomically and exits. The control app
 //! never rewrites it at start (a stale build started by hand cannot take the registration back).
 //! `--unregister` removes it ([`remove`]), but only when its `launcher` names this install and its

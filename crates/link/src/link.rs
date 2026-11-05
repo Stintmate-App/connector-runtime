@@ -40,7 +40,7 @@ pub fn to_value<T: Serialize>(t: &T) -> Value {
     codec::decode(&bytes).expect("rmp-serde writes the subset")
 }
 
-/// Who this process is on both links (contract 4.1): `app` is the connector's endpoint, the meta
+/// Who this process is on both links (connector kit, contract.md section 4.1): `app` is the connector's endpoint, the meta
 /// carries its id, name, simulator and product.
 pub fn peer_info(spec: &ConnectorSpec, service: &str) -> PeerInfo {
     let meta = codec::map([
@@ -537,7 +537,7 @@ impl ControlLink {
     }
 }
 
-/// The `connector.status` v1 fields (contract 5.2).
+/// The `connector.status` v1 fields (contract.md section 5.2).
 pub const STATUS_FIELDS: [&str; 9] = [
     "game_running",
     "phase",

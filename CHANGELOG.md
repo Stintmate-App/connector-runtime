@@ -2,7 +2,9 @@
 
 All notable changes to this project are written here.
 
-## Unreleased
+## 0.1.0 (2026-11-05)
+
+First release. The control app, window, recorder links, outbox, sink, status, texts, write-API structs, catalog validation and telemetry sample of the AMS2 connector 3.4.0, with the connector named by a `ConnectorSpec`. New against that code: the control app ignores unknown launcher options; `STINTMATE_DEV_INSTANCE` separates every process; the descriptor carries `window` and `features`.
 
 - `stintmate-connector-control`: the launcher ignores options it does not know (they are kept in
   `Args::ignored` and logged once) and a value after one is not read as a known option; known

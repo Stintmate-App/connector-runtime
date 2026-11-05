@@ -1,4 +1,4 @@
-//! CLDR plural rules: the subset integer counts need (docs/catalogs.md section 5).
+//! CLDR plural rules: the subset integer counts need (connector kit, catalogs.md section 5).
 
 use std::collections::BTreeMap;
 

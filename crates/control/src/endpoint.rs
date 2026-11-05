@@ -1,8 +1,8 @@
-//! The connector's own endpoint `connector-<id>` (contract sections 3 and 5.6).
+//! The connector's own endpoint `connector-<id>` (connector kit, contract.md sections 3 and 5.6).
 //!
-//! * **the control interface** (section 3): `control.show`, `control.hide`, `control.quit`,
+//! * **the control interface** (contract.md section 3): `control.show`, `control.hide`, `control.quit`,
 //!   `control.managed`, `control.service.start`, `control.service.stop`,
-//!   `control.autostart.set` (all `ordered`, deadline 5 s), `control.catalog.get`,
+//!   `control.autostart.set` (all `ordered`; the caller sets the deadline, 5 s by default), `control.catalog.get`,
 //!   `control.activity.act`; the state channels `control.state` and `control.activity`, the
 //!   event channels `control.notices` and `control.services.desired`. The methods only parse
 //!   and check; the app's handler does the work and refuses with `RemoteError`. The caller is
@@ -10,7 +10,7 @@
 //!   stop and quit;
 //! * **the window's API** ([`crate::api`]): the state channel `ui.snapshot` and the method
 //!   `ui.command`, used by the window process;
-//! * **the services' status** (intra-app, 5.6): each service process opens this endpoint when
+//! * **the services' status** (connector kit, contract.md section 5.6): each service process opens this endpoint when
 //!   it runs and declares the state channel `service.status`; the endpoint subscribes on that
 //!   connection and keeps the latest value per service on the [`StatusBoard`], with `pid`
 //!   replaced by the connection's OS PID. A service without a connection has no status.

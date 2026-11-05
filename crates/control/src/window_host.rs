@@ -1,5 +1,5 @@
 //! The window process's life, seen from the control app: at most one
-//! the window executable at a time, started on demand and gone when its window closes.
+//! window executable at a time, started on demand and gone when its window closes.
 //!
 //! A second "Open" while it runs starts nothing: the control app publishes the request in
 //! `ui.snapshot` (`window_request`), which the window process watches, and this host only lets

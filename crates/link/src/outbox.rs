@@ -1,4 +1,4 @@
-//! The recorder's outbox: every write to Pitwall goes through the disk first (contract 5.4).
+//! The recorder's outbox: every write to Pitwall goes through the disk first (connector kit, contract.md section 5.4).
 //!
 //! [`Outbox::put`] stores a write as `<20-digit sequence>.msgpack` holding
 //! `{method, v, ik, p, at}` (a temporary file, then a rename). The sender thread sends the files
@@ -21,7 +21,7 @@ use stintmate_ipc::codec::{self, Value};
 pub const SUFFIX: &str = "msgpack";
 /// Folder of refused writes.
 pub const REJECTED: &str = "rejected";
-/// The write methods' deadline (contract 4.2).
+/// The write methods' deadline (contract.md section 4.2).
 pub const SEND_TIMEOUT: Duration = Duration::from_secs(30);
 /// Errors that will not get better by sending again.
 pub const NON_RETRYABLE: [&str; 6] = [

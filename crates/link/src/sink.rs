@@ -38,7 +38,7 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-/// 16 random hex digits (contract 4.2).
+/// 16 random hex digits (connector kit, contract.md section 4.2).
 pub fn new_session_key() -> String {
     use std::hash::{BuildHasher, Hasher};
     let mut h = std::collections::hash_map::RandomState::new().build_hasher();

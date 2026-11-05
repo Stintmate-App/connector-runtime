@@ -1,6 +1,6 @@
 //! The command line and the process's life: `--register`, `--unregister`, `--read-registration`
 //! (the machine descriptor, no workspace), workspace errors, single instance,
-//! the second launch's call, and the headless run until a UI (U1) is attached.
+//! the second launch's call, and the headless run off Windows (no tray: the events are only drained).
 
 use crate::Hooks;
 use crate::api::UiEvent;

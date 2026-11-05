@@ -2,8 +2,8 @@
 //! Stintmate hub to stop only this connector and keep it stopped while the files are replaced
 //! (`hub.connector.hold`), and to start it again when the setup ends (`hub.connector.release`).
 //!
-//! A connector's setup tool names the hub's endpoint as a documented interface (contract
-//! section 9.1); the connector itself never does. Exit statuses of the hold: 0 held and
+//! A connector's setup tool names the hub's endpoint as a documented interface (connector kit,
+//! contract.md section 7); the connector itself never does. Exit statuses of the hold: 0 held and
 //! nothing of the connector runs, 1 held but something still runs after the wait, 5 no
 //! Stintmate to ask, 6 Stintmate runs but did not answer, 7 refused because a session is
 //! being recorded. The release exits 0, 5 or 6.

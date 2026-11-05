@@ -1,4 +1,4 @@
-//! The connector texts runtime: the team's text catalogs contract v1.
+//! The connector texts runtime: the connector kit's text catalogs format (catalogs.md).
 //!
 //! The chain of catalogs is the connector's embedded English catalog ([`Embedded`]) with the
 //! workspace's language packs over it ([`load`]), per key, every pack entry validated with

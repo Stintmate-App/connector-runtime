@@ -1,4 +1,4 @@
-//! Language tags and the fallback chain (docs/catalogs.md section 3).
+//! Language tags and the fallback chain (connector kit, catalogs.md section 6).
 
 fn title(part: &str) -> String {
     let mut chars = part.chars();

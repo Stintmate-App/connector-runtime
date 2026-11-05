@@ -1,4 +1,4 @@
-//! The reason codes of the catalogs contract (docs/catalogs.md section 9).
+//! The reason codes of the connector kit's catalogs format (catalogs.md section 9).
 
 use std::fmt;
 

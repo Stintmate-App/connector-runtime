@@ -1,4 +1,5 @@
-//! The two standard actions every connector declares (contract 4.8 and 5.1), as data.
+//! The two standard actions every connector declares (connector kit, contract.md sections 4.6
+//! and 5.1), as data.
 //!
 //! A connector declares its actions with `pitwall.actions.declare` at every connection
 //! (idempotent, `ik` `<prefix>/actions/<sha12 of the actions>`, last declaration wins) and
