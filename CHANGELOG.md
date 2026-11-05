@@ -13,6 +13,7 @@ All notable changes to this project are written here.
 - `stintmate-connector-testing`: `EXAMPLE_SPEC` carries an example UI catalog.
 - `stintmate-connector-link`: `WriteSink::catalog` queues a catalog write in the middle of a
   session, for cars first seen after it opened.
+- `stintmate-connector-window`: the settings window of a connector (Services, Options and Logs pages, the dark theme and the bundled Barlow, Barlow Condensed and JetBrains Mono fonts under the SIL Open Font License). `run(spec, argv)` is the whole `main` of the window process: its names, version, icon glyph and texts come from the connector spec and its catalog; `--page`, `--pipe`, `--key-file` and `--mutex` are the options, anything else exits 2. Tests render every page offscreen to PNG files under `target/tmp/window-renders`.
 
 - `stintmate-connector-link`: `sink::WriteSink`, the generic writer of a connector: session keys,
   idempotency keys under the connector id, write sequences, the session resume file (identity
