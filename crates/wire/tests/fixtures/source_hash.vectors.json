@@ -1,0 +1,12 @@
+{
+  "note": "Source hashes (first 12 hex digits of the SHA-256 of the canonical JSON of params, text and values) of message shapes the format has, made with an independent implementation.",
+  "cases": [
+    {"message": {"text": "Yellow flag, sector {sector}.", "params": {"sector": "int"}}, "hash": "0183e86e58f2"},
+    {"message": {"text": "Red flag. Slow down and come back to the pits."}, "hash": "1e3f28c9c867"},
+    {"message": {"text": "Chequered flag. You finish {position}.", "params": {"position": "ordinal"}}, "hash": "d722c4c5bbfb"},
+    {"message": {"text": "Yellow for {cause}.",
+                 "params": {"cause": {"kind": "enum", "values": ["solo_crash", "vehicle_crash", "obstruction"]}},
+                 "values": {"cause": {"solo_crash": "a car off on its own", "vehicle_crash": "a collision", "obstruction": "a car blocking the track"}}},
+     "hash": "cfce807adadf"}
+  ]
+}
