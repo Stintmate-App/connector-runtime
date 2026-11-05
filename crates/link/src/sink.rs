@@ -628,7 +628,7 @@ mod tests {
     use crate::link::CallError;
     use std::sync::Mutex as StdMutex;
 
-    /// A test clock with AMS2's rule: laps not fewer, remaining time not higher than stored + 2 s.
+    /// A test clock with the usual rule: laps not fewer, remaining time not higher than stored + 2 s.
     #[derive(Clone, Copy)]
     struct TestClock {
         left: f32,

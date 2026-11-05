@@ -1,0 +1,37 @@
+[package]
+name = "stintmate-connector-control"
+description = "The control app of a Stintmate connector as a library: the recorder's supervision, the control endpoint, the tray, the descriptor and the command line"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+stintmate-connector-platform = { workspace = true }
+stintmate-connector-resources = { workspace = true }
+stintmate-connector-i18n = { workspace = true }
+stintmate-ipc = { workspace = true }
+serde_json = { workspace = true }
+rmp-serde = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+tray-icon = { workspace = true }
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+stintmate-ipc-check = { workspace = true }
+stintmate-connector-testing = { workspace = true }
