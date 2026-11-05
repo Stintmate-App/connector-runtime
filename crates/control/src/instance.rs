@@ -1,6 +1,6 @@
 //! Single instance of the control app, and the second launch's call.
 //!
-//! The lock is a named mutex (`Local.<prefix>.UI`). The first instance serves the
+//! The lock is a named mutex (`Local\<prefix>.UI`). The first instance serves the
 //! connector's endpoint; a second launch asks it to show its window (`control.show`), or,
 //! launched managed, to be managed by its parent (`control.managed`), over that endpoint, and
 //! exits.

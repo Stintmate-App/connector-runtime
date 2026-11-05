@@ -1,5 +1,5 @@
 //! Messages: placeholders, the source hash, and the validation of a translation entry, of a
-//! source message and of a pack file (docs/catalogs.md sections 4, 8 and 9).
+//! source message and of a pack file (connector kit, catalogs.md sections 4, 8 and 9).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,7 +16,7 @@ pub const NUMBERS_SCHEMA: &str = "stintmate-numbers/1";
 
 const GENDERS: [&str; 3] = ["m", "f", "n"];
 const SPOKEN_MAX: usize = 200;
-/// The param kinds of docs/catalogs.md section 4.2.
+/// The param kinds of catalogs.md section 4.2 of the connector kit.
 pub const KINDS: [&str; 12] = [
     "text",
     "int",
@@ -148,7 +148,7 @@ fn is_hash(s: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-/// `Ok` or the reason (docs/catalogs.md section 9) a translation `entry` of `key` is
+/// `Ok` or the reason (catalogs.md section 9) a translation `entry` of `key` is
 /// rejected against its `source` message (`None`: not in the catalog) under the language's
 /// plural `rules`.
 pub fn validate(

@@ -1,4 +1,4 @@
-//! `connector.telemetry` v1 (contract 5.5): the neutral 32-byte sample a brake cue scheduler
+//! `connector.telemetry` v1 (connector kit, contract.md section 5.5): the neutral 32-byte sample a brake cue scheduler
 //! runs on.
 //!
 //! Layout (little endian, 32 bytes): `lap_distance_m f32`, `speed_ms f32`, `accel_long_ms2 f32`,

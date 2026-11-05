@@ -773,7 +773,7 @@ impl ControlApp {
         }))
     }
 
-    /// `control.state` (contract 3.2: the common fields and the connector's).
+    /// `control.state` (connector kit, contract.md section 3.2: the common fields and the connector's).
     fn state_value(&self, g: &mut Inner, states: &[ServiceState]) -> Json {
         let outbox = outbox_of(states);
         json!({

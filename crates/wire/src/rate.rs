@@ -5,7 +5,7 @@
 
 use std::collections::VecDeque;
 
-/// Announcements per connector per window (contract 4.4).
+/// Announcements per connector per window (connector kit, contract.md section 4.4).
 pub const RATE_LIMIT: usize = 10;
 /// The window, seconds.
 pub const RATE_WINDOW_S: f64 = 60.0;

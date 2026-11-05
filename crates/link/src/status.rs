@@ -1,4 +1,4 @@
-//! The status the loop reports every 0.5 s, as a fixed struct, and the thread that publishes it.
+//! The status the connector's loop reports, as a fixed struct, and the thread that publishes it.
 //!
 //! The loop fills a preallocated [`StatusInput`] in place (strings are cleared and refilled, so
 //! after the first fill nothing allocates), compares it field by field with the last one handed
@@ -114,7 +114,7 @@ impl Default for Plain {
     }
 }
 
-/// Everything the two status channels carry (contract 5.2 and 5.6), as plain data.
+/// Everything the two status channels carry (connector kit, contract.md sections 5.2 and 5.6), as plain data.
 #[derive(Debug, PartialEq)]
 pub struct StatusInput {
     /// The fields without text.
@@ -170,7 +170,7 @@ impl StatusInput {
         self.pitwall_message.assign(o.pitwall_message.get());
     }
 
-    /// `connector.status` v1 (contract 5.2).
+    /// `connector.status` v1 (contract.md section 5.2).
     pub fn protocol_json(&self) -> Json {
         let p = &self.plain;
         let live = if p.live {
@@ -194,7 +194,7 @@ impl StatusInput {
         })
     }
 
-    /// What only the control app shows (`service.status`, contract 5.6).
+    /// What only the control app shows (`service.status`, contract.md section 5.6).
     pub fn extra_json(&self) -> Json {
         let p = &self.plain;
         json!({

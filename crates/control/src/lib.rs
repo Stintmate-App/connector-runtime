@@ -1,7 +1,7 @@
 //! The control app of a Stintmate connector, as a library: everything but the game.
 //!
 //! A connector's control executable is `fn main` calling [`run`] with its
-//! [`ConnectorSpec`](stintmate_connector_platform::spec::ConnectorSpec) and its [`Hooks`].
+//! [`ConnectorSpec`] and its [`Hooks`].
 //!
 //! * [`app`]: [`app::ControlApp`], the heart: what the tray and the window show and do, behind
 //!   a small in-process API ([`api`]: commands in, snapshots and events out), so the UI can

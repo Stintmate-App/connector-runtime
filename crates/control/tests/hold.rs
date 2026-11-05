@@ -1,6 +1,6 @@
 //! `--stintmate-hold` and `--stintmate-release` (`hold::hold` / `hold::release`) against a fake
-//! hub endpoint on a random pipe: the replies the spec defines (section 2) and the exit
-//! statuses it assigns (section 3). Unique mutex names, a temporary registry and a test key:
+//! hub endpoint on a random pipe: the replies the hub's endpoint defines (contract.md
+//! section 7 of the connector kit) and the exit statuses `hold` assigns. Unique mutex names, a temporary registry and a test key:
 //! nothing here touches a real hub, pipes, key or workspace.
 
 /// The example connector with its UI catalog.

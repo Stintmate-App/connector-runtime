@@ -1,6 +1,6 @@
-//! The Stintmate workspace resolver: workspace contract v1 (the Stintmate
-//! workspace folder contract), tested against the contract's vectors
-//! (`tests/fixtures/workspace.vectors.json`).
+//! The Stintmate workspace resolver: the workspace resolution of
+//! Stintmate IPC (SPEC section 4.3), tested against the vectors in
+//! `tests/fixtures/workspace.vectors.json`.
 //!
 //! This is the connector's own implementation for now; it may move
 //! to stintmate-ipc's `find_workspace` once it ships there passing the same vectors.
@@ -328,7 +328,7 @@ fn roaming_appdata() -> Option<String> {
     None
 }
 
-// ---------------------------------------------------------------- path rules (section 3)
+// ---------------------------------------------------------------- path rules
 
 /// Rule 1: whitespace, one pair of surrounding double quotes, whitespace.
 pub fn clean(value: &str) -> String {

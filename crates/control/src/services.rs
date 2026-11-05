@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 use stintmate_connector_i18n::Arg;
 
-/// A forced stop after this long (decision 11).
+/// A service that has not stopped by itself after this long is terminated.
 pub const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 /// At most one notification per service per minute.
 pub const NOTIFY_INTERVAL: f64 = 60.0;

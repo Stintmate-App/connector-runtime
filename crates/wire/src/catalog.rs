@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 pub const SCHEMA: &str = "stintmate-catalog/1";
 /// Valid audiences.
 pub const AUDIENCES: [&str; 2] = ["driver", "agent"];
-/// Valid groups (contract 4.4).
+/// Valid groups (connector kit, contract.md section 4.4).
 pub const GROUPS: [&str; 12] = [
     "laps",
     "fuel",
@@ -32,7 +32,7 @@ pub const GROUPS: [&str; 12] = [
     "spotter",
     "other",
 ];
-/// Valid priorities (contract: `pitwall.catalog.declare`).
+/// Valid priorities (`pitwall.catalog.declare`, contract.md section 4.4).
 pub const PRIORITIES: [&str; 5] = ["low", "normal", "high", "critical", "spotter"];
 /// Priorities an `agent` message may use.
 pub const AGENT_PRIORITIES: [&str; 3] = ["low", "normal", "high"];
@@ -208,7 +208,7 @@ fn is_falsy(v: &Value) -> bool {
     }
 }
 
-/// The source hash of a message (catalogs.md section 8): the first 12 hex digits of the SHA-256
+/// The source hash of a message (catalogs.md section 8 of the connector kit): the first 12 hex digits of the SHA-256
 /// of `{"params", "text"[, "values"]}` as canonical JSON.
 pub fn source_hash(message: &Value) -> String {
     let mut obj = Map::new();

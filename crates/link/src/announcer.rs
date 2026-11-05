@@ -1,12 +1,13 @@
-//! Sending announcements to Pitwall (contract 4.4) and the per-connection declarations.
+//! Sending announcements to Pitwall (connector kit, contract.md section 4.4) and the
+//! per-connection declarations.
 //!
 //! At every new connection [`declare_connection`] sends, idempotently with their `ik`,
 //! `pitwall.catalog.declare` (the connector's own catalog; nothing is announced before it was
 //! answered), `pitwall.guidance.declare` and `pitwall.actions.declare` (5 s, a failure is only
 //! logged). [`Announcer::announce`] sends `pitwall.announce {code, params, session_key?, data?}`
 //! without waiting, after checking the params against the catalog and keeping the contract's
-//! windows itself (10 per 60 s, and 120 per 60 s for the `spotter` level); while Pitwall is away, or over the limit, it drops (never
-//! queues).
+//! windows itself (10 per 60 s, and 120 per 60 s for the `spotter` level); while Pitwall is
+//! away, or over the limit, it drops (never queues).
 
 use crate::link::{CallError, Transport, to_value};
 use serde_json::{Map, Value as Json, json};
