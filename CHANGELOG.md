@@ -4,6 +4,7 @@ All notable changes to this project are written here.
 
 ## Unreleased
 
+- The text catalog test fixtures are kept byte for byte (line endings included), so their pinned hashes hold on every checkout.
 - Repository created.
 - Cargo workspace with the toolchain pin, the static C runtime setting, `deny.toml`, `NOTICE`,
   `SECURITY.md` and a manually started CI workflow.

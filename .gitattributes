@@ -1,2 +1,2 @@
 * text=auto
-crates/i18n/fixtures/*.json -text
+crates/i18n/tests/fixtures/*.json -text
