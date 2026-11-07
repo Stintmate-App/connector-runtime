@@ -128,12 +128,25 @@ pub fn build(
     if let Some(f) = flavour.filter(|f| !f.is_empty()) {
         d["flavour"] = json!(f);
     }
+    if let Some(icon) = installed_icon(launcher) {
+        d["icon"] = json!(icon.display().to_string());
+    }
     if let Some(u) = uninstall {
         let mut argv = vec![u.display().to_string()];
         argv.extend(UNINSTALL_SWITCHES.iter().map(|s| (*s).to_string()));
         d["uninstall"] = json!(argv);
     }
     d
+}
+
+/// The connector's icon: `icon.png` next to the launcher, when the install put one there. The
+/// key is optional, so it is left out when the file is missing or the launcher's path is not
+/// absolute.
+pub const ICON_FILE: &str = "icon.png";
+
+fn installed_icon(launcher: &Path) -> Option<PathBuf> {
+    let icon = launcher.parent()?.join(ICON_FILE);
+    (icon.is_absolute() && icon.is_file()).then_some(icon)
 }
 
 /// Equal but for `written_at`.
@@ -423,6 +436,20 @@ mod tests {
                 "/NORESTART"
             ])
         );
+    }
+
+    #[test]
+    fn icon_is_the_png_next_to_the_launcher_and_left_out_without_one() {
+        let dir = std::env::temp_dir().join(format!("rt-icon-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("example-connector-ui.exe");
+        let d = build(&SPEC, &exe, r"Local\M", None, None);
+        assert!(d.get("icon").is_none());
+        std::fs::write(dir.join(ICON_FILE), b"png").unwrap();
+        let d = build(&SPEC, &exe, r"Local\M", None, None);
+        assert_eq!(d["icon"], dir.join(ICON_FILE).display().to_string());
+        assert!(Path::new(d["icon"].as_str().unwrap()).is_absolute());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
