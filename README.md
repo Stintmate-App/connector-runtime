@@ -6,7 +6,7 @@ to Pitwall (Stintmate's telemetry database), its outbox and sink, the write API 
 the validation of announcement catalogs. A connector supplies what is specific to its
 simulator; this library does the rest.
 
-**Status:** release 0.1.0. It is made from the code of the AMS2 connector 3.4.0 with the
+**Status:** release 0.1.3. It is made from the code of the AMS2 connector 3.4.0 with the
 simulator taken out. Everything that depends on the simulator comes in through one value, a
 [`ConnectorSpec`](#the-connector-spec).
 

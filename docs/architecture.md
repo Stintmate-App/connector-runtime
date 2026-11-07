@@ -102,7 +102,7 @@ flags.
   library's own is switched off), in a thread named `pitwall-link`. The state is `connected`,
   `waiting` (Pitwall is not running or the connection dropped) or `refused`. After a failed
   attempt it waits 0.25, 0.5, 1 and then 2 s, each with about +-20 % jitter (`link::backoff`,
-  `link::jitter`); after a refusal (`connector_busy`, `unauthorized`) it waits 10 s
+  `link::jitter`); after a refusal (`unauthorized`, `bad_request`, `busy`, `connector_busy`; `link::REFUSAL_CODES`) it waits 10 s
   (`REFUSED_RETRY`); after `connector_id_taken` it waits 60 s (`TAKEN_RETRY`), because only the
   user can change which product owns an id. Its hello carries `connector_id`, `connector_name`,
   `sim`, `sim_name`, `service` and `product` (`link::peer_info`), all from the spec.

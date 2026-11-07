@@ -2,7 +2,11 @@
 
 All notable changes to this project are written here.
 
-## 0.1.3 (unreleased)
+## Unreleased
+
+- **Documentation.** Checked against the code; corrections: the status version, the release dated, the refusal codes of the link, the IPC tag line of the embedding guide.
+
+## 0.1.3 (2026-11-07)
 
 Additive; no API change.
 
