@@ -2,6 +2,15 @@
 
 All notable changes to this project are written here.
 
+## 0.1.3 (unreleased)
+
+Additive; no API change.
+
+- `stintmate-connector-control`: the descriptor carries the optional key `icon`, the absolute path
+  of `icon.png` in the folder of the control app's executable. It is written only when that file
+  exists, so a connector whose setup installs the PNG next to its executables gets the icon on
+  registration and one without it is unchanged.
+
 ## 0.1.2 (2026-11-05)
 
 - `stintmate-connector-testing`: `EXAMPLE_SPEC` takes its version from the crate, so the example
