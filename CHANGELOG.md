@@ -2,6 +2,10 @@
 
 All notable changes to this project are written here.
 
+## 0.1.3+docs.2 (2026-11-09)
+
+- **Documentation.** A second pass against the code; behaviour unchanged. The architecture page now lists the descriptor's optional `icon` key and no longer names a private constant as if it were public.
+
 ## 0.1.3+docs.1 (2026-11-07)
 
 - **Documentation.** Checked against the code; corrections: the status version, the release dated, the refusal codes of the link, the IPC tag line of the embedding guide.
