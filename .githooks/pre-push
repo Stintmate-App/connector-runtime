@@ -1,0 +1,4 @@
+#!/bin/sh
+# Lint check before each push (the same check as the ci workflow).
+# Enable once per clone: git config core.hooksPath .githooks
+exec cargo clippy --workspace --all-targets -- -D warnings

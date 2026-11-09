@@ -1,0 +1,4 @@
+#!/bin/sh
+# Formatting check before each commit (the same check as the ci workflow).
+# Enable once per clone: git config core.hooksPath .githooks
+exec cargo fmt --all --check

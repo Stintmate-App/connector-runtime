@@ -1,2 +1,4 @@
 * text=auto
 crates/i18n/tests/fixtures/*.json -text
+# Git hooks run under sh: LF only
+.githooks/* text eol=lf
