@@ -140,6 +140,8 @@ cargo deny check licenses advisories bans sources
 ```
 
 The last command needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) (`deny.toml`).
+The repository's hooks run the formatting check before each commit and clippy before each push;
+enable them once per clone with `git config core.hooksPath .githooks`.
 The window crate's lifecycle test opens a real window and needs a desktop with OpenGL; set
 `STINTMATE_NO_DESKTOP=1` to skip it. `.cargo/config.toml` links the C runtime statically; it
 applies to this repository's own builds, and each connector sets its own.

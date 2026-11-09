@@ -2,6 +2,11 @@
 
 All notable changes to this project are written here.
 
+## 0.1.3+docs.3 (2026-11-10)
+
+- **Hooks.** `.githooks/` runs `cargo fmt --all --check` before a commit and clippy before a push
+  (enabled with `git config core.hooksPath .githooks`). No code change.
+
 ## 0.1.3+docs.2 (2026-11-09)
 
 - **Documentation.** A second pass against the code; behaviour unchanged. The architecture page now lists the descriptor's optional `icon` key and no longer names a private constant as if it were public.
