@@ -2,6 +2,10 @@
 
 All notable changes to this project are written here.
 
+## 0.2.2 (2026-11-10)
+
+- **The feature `tyre_readings`.** `FEATURES` (the contract vocabulary a connector's declared features are checked against) gains `tyre_readings`, from connector-kit 0.5.0, so a connector that sends `tyre_readings` can declare it. No other change.
+
 ## 0.2.1 (2026-11-10)
 
 Additive; no API change for existing code.

@@ -14,12 +14,13 @@ pub const HZ_MAX: f64 = 200.0;
 
 /// The features a connector may declare in its descriptor (the connector kit's `contract.json`
 /// vocabulary).
-pub const FEATURES: [&str; 20] = [
+pub const FEATURES: [&str; 21] = [
     "live_frame",
     "lap_status",
     "capture_target",
     "brake_cues",
     "setups",
+    "tyre_readings",
     "fuel",
     "sectors",
     "conditions",

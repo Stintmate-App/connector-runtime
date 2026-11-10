@@ -21,11 +21,11 @@ fn the_example_spec_is_valid_and_names_derive_from_it() {
 
 #[test]
 fn the_features_vocabulary_is_the_kits() {
-    assert_eq!(FEATURES.len(), 20);
+    assert_eq!(FEATURES.len(), 21);
     let mut all = FEATURES.to_vec();
     all.sort_unstable();
     all.dedup();
-    assert_eq!(all.len(), 20, "no duplicates");
+    assert_eq!(all.len(), 21, "no duplicates");
     ConnectorSpec {
         features: &FEATURES,
         ..SPEC
