@@ -1,8 +1,10 @@
 name: ci
 
-# Minutes are limited: CI runs by hand only (Actions > ci > Run workflow); every check runs
-# locally before each merge.
+# Runs on every pull request to main and by hand (Actions > ci > Run workflow). The same checks
+# run locally through the hooks in .githooks/.
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
