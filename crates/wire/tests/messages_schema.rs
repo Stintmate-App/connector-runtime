@@ -302,6 +302,84 @@ fn pit_exit_validates() {
     );
 }
 
+fn tyre_wheel_full() -> TyreWheel {
+    TyreWheel {
+        carcass_in_c: Some(74.1),
+        carcass_mid_c: Some(75.56),
+        carcass_out_c: Some(73.9),
+        surface_in_c: Some(60.0),
+        surface_mid_c: Some(61.0),
+        surface_out_c: Some(59.5),
+        tread_in: Some(0.9811),
+        tread_mid: Some(0.9817),
+        tread_out: Some(0.9822),
+        pressure_hot_kpa: Some(185.5),
+    }
+}
+
+#[test]
+fn tyre_readings_validate() {
+    for occasion in ["pit_stop", "reset", "car_entry", "garage", "other"] {
+        ok(
+            "tyre_readings",
+            true,
+            &TyreReadings {
+                taken_at: "2026-11-07T11:52:41.512+01:00".into(),
+                occasion: occasion.into(),
+                wheels: TyreWheels {
+                    fl: Some(tyre_wheel_full()),
+                    fr: Some(tyre_wheel_full()),
+                    rl: Some(tyre_wheel_full()),
+                    rr: Some(tyre_wheel_full()),
+                },
+            },
+        );
+    }
+    // the smallest message: one wheel, one reading
+    ok(
+        "tyre_readings",
+        true,
+        &TyreReadings {
+            taken_at: "2026-11-07T11:52:41Z".into(),
+            occasion: "other".into(),
+            wheels: TyreWheels {
+                rr: Some(TyreWheel {
+                    tread_mid: Some(1.0),
+                    ..TyreWheel::default()
+                }),
+                ..TyreWheels::default()
+            },
+        },
+    );
+}
+
+#[test]
+fn the_schema_refuses_bad_tyre_readings() {
+    let good = TyreReadings {
+        taken_at: "2026-11-07T11:52:41Z".into(),
+        occasion: "pit_stop".into(),
+        wheels: TyreWheels {
+            fl: Some(tyre_wheel_full()),
+            ..TyreWheels::default()
+        },
+    };
+    let bad = |edit: &dyn Fn(&mut Value)| {
+        let mut m = message("tyre_readings", true, &good);
+        edit(&mut m);
+        refused("tyre_readings", &m);
+    };
+    bad(&|m| m["occasion"] = json!("tyre_change"));
+    bad(&|m| m["wheels"] = json!({}));
+    bad(&|m| m["wheels"] = json!({"fl": {}}));
+    bad(&|m| m["wheels"]["fl"]["tread_in"] = json!(1.5));
+    bad(&|m| m["wheels"]["fl"]["carcass_mid_c"] = json!(600));
+    bad(&|m| m["wheels"]["fl"]["pressure_hot_kpa"] = json!(0));
+    bad(&|m| m["wheels"]["xx"] = json!({"tread_in": 0.5}));
+    bad(&|m| {
+        m.as_object_mut().unwrap().remove("session_id");
+    });
+}
+
 fn row_min() -> ParticipantLap {
     ParticipantLap {
         participant: 0,

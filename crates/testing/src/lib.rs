@@ -177,6 +177,7 @@ impl FakePitwall {
             "pitwall.write.lap",
             "pitwall.write.setup",
             "pitwall.write.pit_exit",
+            "pitwall.write.tyre_readings",
             "pitwall.write.participant_laps",
             "pitwall.write.session_end",
             "pitwall.catalog.declare",

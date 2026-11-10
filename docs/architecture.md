@@ -140,7 +140,7 @@ messages, or closures that build them, and it does the rest on its own thread na
 - A session is named by a **session key**, 16 random hex digits (`new_session_key`) chosen when
   the connector opens it (`start_session`).
 - Every write gets an **idempotency key**, assigned by the sink and stored with the write:
-  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`,
+  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`, `.../tyre_readings/<seq>`,
   `.../participants/<seq>` and `.../end`, and `<prefix>/catalog/<12 hex digits of the SHA-256>`
   for a catalog. The prefix is the connector's id. Sending the same write again is therefore
   harmless.

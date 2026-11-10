@@ -2,6 +2,16 @@
 
 All notable changes to this project are written here.
 
+## 0.2.1 (2026-11-10)
+
+Additive; no API change for existing code.
+
+- **Tyre readings.** A new write message, `tyre_readings`, for readings the simulator gives at a moment rather than as live telemetry: when the car enters its pit box, when the simulator puts it back in the pits, when the driver gets into the car, after a garage visit. `stintmate-connector-wire` gains `messages::TyreReadings { taken_at, occasion, wheels }`, `TyreWheels { fl, fr, rl, rr }` (each an `Option<TyreWheel>`, a missing wheel is left out) and `TyreWheel` (carcass and surface temperatures and tread remaining at the inner, middle and outer edge, and hot pressure; every value an `Option<f64>`, tread `1.0` is new). `stintmate-connector-link` gains `WriteSink::tyre_readings(local, readings)`, sent as `pitwall.write.tyre_readings` with the idempotency key `<prefix>/<session_key>/tyre_readings/<seq>`; wheels without a finite value are dropped and nothing is queued when no reading is left. Send the laps that ended before the readings first, and a stop's readings before its `pit_exit`.
+- **Needs a newer Pitwall.** The message is part of write API 0.5.0 of the connector kit (the test schema is updated to it). A Pitwall that does not know it answers `unknown_method`; the outbox drops that write without retrying and goes on with the next (now covered by a test).
+- **Resume file.** `session-resume.json` stores five write sequences instead of four. A file written by 0.2.0 or older, with four, is read with the fifth at 0.
+- The sink no longer maps an unknown write kind onto the rival-laps counter; it is logged and dropped.
+- **Testing.** The fake Pitwall of `stintmate-connector-testing` answers `pitwall.write.tyre_readings`.
+
 ## 0.2.0 (2026-11-10)
 
 Breaking for code that builds a `ConnectorSpec` with a struct literal (a new public field), so the minor version moves.

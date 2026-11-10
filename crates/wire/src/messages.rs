@@ -371,6 +371,107 @@ pub struct PitExit {
     pub fuel_l: Option<f64>,
 }
 
+/// One wheel of a [`TyreReadings`]: whatever the simulator gave, the rest `None` (never invented).
+///
+/// `in` is the edge towards the car's centreline, `out` the edge away from it.
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct TyreWheel {
+    /// Carcass temperature, inner edge, in degrees Celsius (-50..500).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carcass_in_c: Option<f64>,
+    /// Carcass temperature, middle.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carcass_mid_c: Option<f64>,
+    /// Carcass temperature, outer edge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carcass_out_c: Option<f64>,
+    /// Tread surface temperature, inner edge, in degrees Celsius (-50..500).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surface_in_c: Option<f64>,
+    /// Tread surface temperature, middle.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surface_mid_c: Option<f64>,
+    /// Tread surface temperature, outer edge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surface_out_c: Option<f64>,
+    /// Tread remaining, inner edge, 0 to 1 where **1 is new**.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tread_in: Option<f64>,
+    /// Tread remaining, middle.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tread_mid: Option<f64>,
+    /// Tread remaining, outer edge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tread_out: Option<f64>,
+    /// Pressure at that moment (hot), in kPa (greater than 0).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pressure_hot_kpa: Option<f64>,
+}
+
+impl TyreWheel {
+    /// Whether no reading is set (Pitwall refuses an empty wheel).
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// The wheel with every value that is not a finite number removed (the wire never carries
+    /// NaN or infinity).
+    #[must_use]
+    pub fn finite(self) -> Self {
+        Self {
+            carcass_in_c: finite(self.carcass_in_c),
+            carcass_mid_c: finite(self.carcass_mid_c),
+            carcass_out_c: finite(self.carcass_out_c),
+            surface_in_c: finite(self.surface_in_c),
+            surface_mid_c: finite(self.surface_mid_c),
+            surface_out_c: finite(self.surface_out_c),
+            tread_in: finite(self.tread_in),
+            tread_mid: finite(self.tread_mid),
+            tread_out: finite(self.tread_out),
+            pressure_hot_kpa: finite(self.pressure_hot_kpa),
+        }
+    }
+}
+
+/// The wheels of a [`TyreReadings`], serialized as an object keyed `fl`, `fr`, `rl`, `rr`;
+/// a wheel that is `None` is left out. At least one must be present.
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
+pub struct TyreWheels {
+    /// Front left.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fl: Option<TyreWheel>,
+    /// Front right.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fr: Option<TyreWheel>,
+    /// Rear left.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rl: Option<TyreWheel>,
+    /// Rear right.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rr: Option<TyreWheel>,
+}
+
+impl TyreWheels {
+    /// Whether no wheel has any reading: such a message is not worth sending.
+    pub fn is_empty(&self) -> bool {
+        [&self.fl, &self.fr, &self.rl, &self.rr]
+            .iter()
+            .all(|w| w.as_ref().is_none_or(TyreWheel::is_empty))
+    }
+}
+
+/// `pitwall.write.tyre_readings`: tyre readings the simulator gave at a moment (a stop, a reset,
+/// the driver getting into the car, the garage), not live telemetry.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TyreReadings {
+    /// ISO 8601 timestamp with UTC offset: when the simulator gave the readings.
+    pub taken_at: String,
+    /// `pit_stop`, `reset`, `car_entry`, `garage` or `other`.
+    pub occasion: String,
+    /// The readings per wheel.
+    pub wheels: TyreWheels,
+}
+
 /// `pitwall.write.participant_laps`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ParticipantLaps {
@@ -418,6 +519,54 @@ mod tests {
         assert_eq!(finite(Some(f64::NAN)), None);
         assert_eq!(finite(Some(f64::INFINITY)), None);
         assert_eq!(finite(Some(1.5)), Some(1.5));
+    }
+
+    #[test]
+    fn tyre_readings_serialize_as_an_object_per_present_wheel() {
+        let m = TyreReadings {
+            taken_at: "T".into(),
+            occasion: "pit_stop".into(),
+            wheels: TyreWheels {
+                fl: Some(TyreWheel {
+                    carcass_mid_c: Some(75.5),
+                    tread_in: Some(0.98),
+                    ..TyreWheel::default()
+                }),
+                ..TyreWheels::default()
+            },
+        };
+        assert_eq!(
+            serde_json::to_value(&m).unwrap(),
+            serde_json::json!({
+                "taken_at": "T", "occasion": "pit_stop",
+                "wheels": {"fl": {"carcass_mid_c": 75.5, "tread_in": 0.98}}
+            })
+        );
+        assert!(!m.wheels.is_empty());
+        assert!(TyreWheels::default().is_empty());
+        let empty_wheel = TyreWheels {
+            rr: Some(TyreWheel::default()),
+            ..TyreWheels::default()
+        };
+        assert!(empty_wheel.is_empty());
+    }
+
+    #[test]
+    fn tyre_wheel_finite_drops_nan_and_infinity() {
+        let w = TyreWheel {
+            carcass_in_c: Some(f64::NAN),
+            tread_out: Some(f64::INFINITY),
+            pressure_hot_kpa: Some(180.0),
+            ..TyreWheel::default()
+        }
+        .finite();
+        assert_eq!(
+            w,
+            TyreWheel {
+                pressure_hot_kpa: Some(180.0),
+                ..TyreWheel::default()
+            }
+        );
     }
 
     #[test]

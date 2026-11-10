@@ -13,8 +13,8 @@ The smallest working example is in this repository: a spec of made-up values,
 ## 1. Dependencies
 
 See "Using it" in the [README](../README.md): the crates as git dependencies with
-`tag = "v0.2.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
-(v0.3.3 for release 0.2.0). The recorder needs `platform`, `wire` and `link`; the control app
+`tag = "v0.2.1"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
+(v0.3.3 for release 0.2.1). The recorder needs `platform`, `wire` and `link`; the control app
 needs `platform` and `control`; the window needs `window`; `resources` goes in
 `[build-dependencies]` and `testing` in `[dev-dependencies]`.
 
@@ -210,7 +210,7 @@ sink.end_session(session, &ended_at);
 - `ik_prefix` must be the connector's id (`SPEC.id`), as the idempotency keys of the contract
   start with it.
 - `start_session` returns the session's local number for the other calls: `lap`, `setup`,
-  `pit_exit`, `participants`, `end_session`, and `catalog` for cars first seen after the
+  `pit_exit`, `participants`, `tyre_readings`, `end_session`, and `catalog` for cars first seen after the
   session opened. Builders (`LapBuild`, `SetupBuild`) run on the sink's writer thread.
 - The messages are the structs of `stintmate_connector_wire::messages`. A lap's channels are
   `LapChannels`, serialized as binary `f32` arrays.
