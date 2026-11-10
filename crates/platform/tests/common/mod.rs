@@ -25,5 +25,6 @@ pub const SPEC: ConnectorSpec = ConnectorSpec {
     features: &["live_frame", "lap_status", "window"],
     ui_catalog: "{}",
     glyph: Glyph::I,
+    icon: None,
     dev_env_aliases: &[],
 };

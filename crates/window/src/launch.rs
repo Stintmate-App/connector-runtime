@@ -127,9 +127,9 @@ pub fn run(spec: &'static ConnectorSpec, argv: Vec<String>) -> i32 {
             .with_min_inner_size([560.0, 380.0])
             .with_title(&title)
             .with_icon(std::sync::Arc::new(egui::IconData {
-                rgba: stintmate_connector_resources::render_rgba(spec.glyph, "ok", 64),
-                width: 64,
-                height: 64,
+                rgba: window_icon_rgba(spec),
+                width: stintmate_connector_resources::WINDOW_SIZE,
+                height: stintmate_connector_resources::WINDOW_SIZE,
             })),
         ..Default::default()
     };
@@ -147,4 +147,59 @@ pub fn run(spec: &'static ConnectorSpec, argv: Vec<String>) -> i32 {
         return 1;
     }
     0
+}
+
+/// The window's icon: the connector's artwork alone, or its glyph when it has none (or the
+/// artwork does not decode, which is logged).
+fn window_icon_rgba(spec: &ConnectorSpec) -> Vec<u8> {
+    use stintmate_connector_resources::{WINDOW_SIZE, render_rgba};
+    if let Some(art) = spec.icon {
+        match art.rgba(WINDOW_SIZE) {
+            Ok(rgba) => return rgba,
+            Err(e) => tracing::warn!("{e}; the window draws the glyph instead"),
+        }
+    }
+    render_rgba(spec.glyph, "ok", WINDOW_SIZE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stintmate_connector_resources::{ConnectorIcon, WINDOW_SIZE, render_rgba};
+    use stintmate_connector_testing::EXAMPLE_SPEC;
+
+    fn png(size: u32) -> &'static [u8] {
+        let mut out = Vec::new();
+        let mut enc = png::Encoder::new(&mut out, size, size);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let px: Vec<u8> = (0..size * size).flat_map(|_| [1, 2, 3, 255]).collect();
+        enc.write_header().unwrap().write_image_data(&px).unwrap();
+        Box::leak(out.into_boxed_slice())
+    }
+
+    #[test]
+    fn the_window_shows_the_artwork_alone_or_the_glyph() {
+        let glyph = render_rgba(EXAMPLE_SPEC.glyph, "ok", WINDOW_SIZE);
+        assert_eq!(window_icon_rgba(&EXAMPLE_SPEC), glyph);
+
+        let art = ConnectorIcon {
+            png_32: png(32),
+            png_64: png(64),
+        };
+        let spec = ConnectorSpec {
+            icon: Some(art),
+            ..EXAMPLE_SPEC
+        };
+        assert_eq!(window_icon_rgba(&spec), art.rgba(WINDOW_SIZE).unwrap());
+
+        let bad = ConnectorSpec {
+            icon: Some(ConnectorIcon {
+                png_32: b"",
+                png_64: b"x",
+            }),
+            ..EXAMPLE_SPEC
+        };
+        assert_eq!(window_icon_rgba(&bad), glyph);
+    }
 }

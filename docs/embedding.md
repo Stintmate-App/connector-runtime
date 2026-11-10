@@ -13,8 +13,8 @@ The smallest working example is in this repository: a spec of made-up values,
 ## 1. Dependencies
 
 See "Using it" in the [README](../README.md): the crates as git dependencies with
-`tag = "v0.1.3"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
-(v0.3.3 for release 0.1.3). The recorder needs `platform`, `wire` and `link`; the control app
+`tag = "v0.2.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
+(v0.3.3 for release 0.2.0). The recorder needs `platform`, `wire` and `link`; the control app
 needs `platform` and `control`; the window needs `window`; `resources` goes in
 `[build-dependencies]` and `testing` in `[dev-dependencies]`.
 
@@ -48,6 +48,7 @@ pub static SPEC: ConnectorSpec = ConnectorSpec {
     features: &["live_frame", "lap_status"],
     ui_catalog: include_str!("../locales/en.json"),
     glyph: Glyph::I,
+    icon: None,
     dev_env_aliases: &[],
 };
 ```
@@ -66,7 +67,8 @@ pub static SPEC: ConnectorSpec = ConnectorSpec {
 | `recorder_hz` | the default of `recorder_hz` in `ui_config.json`, and the recorder's rate when `--hz` is absent | within `1.0..=200.0` |
 | `features` | the features the descriptor declares, a subset of `spec::FEATURES` (the connector kit's vocabulary, 20 names); the descriptor lists the control app's own five first | every name in `FEATURES` |
 | `ui_catalog` | the embedded English UI catalog, as JSON text (section 5) | none; checked by `check_ui_catalog` |
-| `glyph` | the mark on the icons: `Glyph::A`, `Glyph::I` or your own strokes | none |
+| `glyph` | the mark drawn on the icons when `icon` is `None`: `Glyph::A`, `Glyph::I` or your own strokes | none |
+| `icon` | the connector's own artwork, `Some(ConnectorIcon { png_32, png_64 })` with two 8-bit RGBA PNG files (32 x 32 and 64 x 64) embedded with `include_bytes!`, or `None` to draw the glyph. The tray shows the artwork with a badge of the level in its lower right corner (grey off, green ok, amber warn, red error); the window shows the artwork alone. A file that does not decode is logged and the glyph is drawn instead; call `icon.rgba(32)` and `icon.rgba(64)` in a test of yours to catch it at build time | none |
 | `dev_env_aliases` | environment variables also read as the development tag, after `STINTMATE_DEV_INSTANCE`, for a connector that had its own variable before | none |
 
 `GameSpec`: `exes` are the game's executable image names, lowercase and not empty.
@@ -111,7 +113,16 @@ out, close the sink (`WriteSink::close(drain)`; `sink::CLOSE_DRAIN` is 5 s) and 
 
 The runtime draws the icons and writes the Windows resource script; the connector's `build.rs`
 writes the files and compiles them with the `embed-resource` crate. Make one `.ico` per
-executable (the tray draws its level icons at run time from the glyph).
+executable (the tray draws its level icons at run time, from the artwork or the glyph).
+
+A connector with its own artwork keeps a checked-in `.ico` (with at least the 16, 32, 48 and 256 px
+images) beside its PNG files and passes that path to `version_rc` instead of writing one with
+`ico_bytes`; no helper is needed. In the spec, `icon: Some(ConnectorIcon { png_32:
+include_bytes!("../assets/icon_32.png"), png_64: include_bytes!("../assets/icon_64.png") })`
+with the 32 x 32 and 64 x 64 PNG files (8-bit RGBA). The `artwork` feature of
+`stintmate-connector-resources` (decoding, on in the control and window crates) is only needed to
+call `rgba` or `badged_rgba` yourself, for example in a test; a `build.rs` that only needs
+`version_rc` leaves it off and keeps the crate on the standard library.
 
 ```rust
 use stintmate_connector_resources::{FileInfo, Glyph, ico_bytes, version_rc};
