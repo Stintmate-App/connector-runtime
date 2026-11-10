@@ -14,8 +14,9 @@
 //! it under the same key (Pitwall keeps the session open across restarts and replays the first
 //! answer to `session_start`, so nothing is announced twice). Anything else gets a new key. Each
 //! write has an idempotency key
-//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|tyre_readings/<seq>|end`,
-//! `<prefix>/catalog/<sha256-12>` for a catalog, assigned here and stored with the write.
+//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|sim_data/<seq>|end`,
+//! `<prefix>/catalog/<sha256-12>` for a catalog and `<prefix>/sim_data_kinds/<sha256-12>` for the
+//! descriptions of the simulator data kinds, assigned here and stored with the write.
 
 use crate::link::{Transport, to_value};
 use crate::outbox::{OnChange, Outbox, Summary};
@@ -28,8 +29,9 @@ use std::time::Duration;
 use stintmate_connector_wire::catalog::{canonical, sha12};
 use stintmate_connector_wire::messages::{
     Catalog, Lap, ParticipantLap, ParticipantLaps, PitExit, SessionEnd, SessionStart, Setup,
-    TyreReadings, TyreWheel,
+    SimData, SimDataKind, SimDataKinds,
 };
+use stintmate_connector_wire::sim_data as limits;
 use stintmate_ipc::codec::{self, Value};
 
 /// What the outbox may still deliver at shutdown (under the 10 s forced stop).
@@ -91,7 +93,7 @@ struct Session {
     seq_setup: u64,
     seq_pit_exit: u64,
     seq_participants: u64,
-    seq_tyre_readings: u64,
+    seq_sim_data: u64,
     remote_id: Option<i64>,
     stint: Option<i64>,
 }
@@ -122,7 +124,14 @@ enum Job<C> {
     Setup(u64, String, String, SetupBuild),
     PitExit(u64, String, Option<f64>),
     Participants(u64, Vec<ParticipantLap>),
-    TyreReadings(u64, Box<TyreReadings>),
+    /// `(session, kind, taken_at, data)`, already checked.
+    SimData(
+        u64,
+        String,
+        String,
+        serde_json::Map<String, serde_json::Value>,
+    ),
+    SimDataKinds(Box<SimDataKinds>),
     Catalog(Box<Catalog>),
     Split(String, Vec<Value>),
     Mark(Sender<()>),
@@ -145,6 +154,9 @@ struct Core<C: ResumeClock> {
     stop_clock: Mutex<Option<C>>,
     /// The clock of the frame that opens a session (set by the recorder while none is open).
     start_clock: Mutex<Option<C>>,
+    /// The last `sim_data_kinds` message (idempotency key and params), sent again before every
+    /// session start.
+    kinds: Mutex<Option<(String, Value)>>,
 }
 
 /// What a stopped recorder leaves for the next one.
@@ -152,7 +164,7 @@ fn resume_json<C: ResumeClock>(token: u64, s: &Session, clock: &C) -> serde_json
     serde_json::json!({
         "game": token, "clock": clock.to_json(), "key": s.key, "identity": s.identity,
         "seq": [
-            s.seq_lap, s.seq_setup, s.seq_pit_exit, s.seq_participants, s.seq_tyre_readings,
+            s.seq_lap, s.seq_setup, s.seq_pit_exit, s.seq_participants, s.seq_sim_data,
         ],
     })
 }
@@ -215,6 +227,7 @@ impl<C: ResumeClock> WriteSink<C> {
             game_token: Mutex::new(None),
             stop_clock: Mutex::new(None),
             start_clock: Mutex::new(None),
+            kinds: Mutex::new(None),
         });
         let (c1, c2) = (core.clone(), core.clone());
         let on_result: crate::outbox::OnResult = Box::new(move |m, p, r| c1.delivered(m, p, r));
@@ -359,7 +372,7 @@ impl<C: ResumeClock> WriteSink<C> {
                     seq_setup: seq[1],
                     seq_pit_exit: seq[2],
                     seq_participants: seq[3],
-                    seq_tyre_readings: seq[4],
+                    seq_sim_data: seq[4],
                     ..Session::default()
                 },
             );
@@ -398,25 +411,53 @@ impl<C: ResumeClock> WriteSink<C> {
         self.core.send(Job::Participants(local, rows));
     }
 
-    /// Queues tyre readings the simulator gave at a moment (a stop, a reset, the driver getting
-    /// into the car, the garage). Send every lap that ended before the readings first, and a
-    /// stop's readings before its [`pit_exit`](Self::pit_exit): Pitwall files them under the
-    /// current stint and the last lap it holds. The same readings sent twice are two readings:
-    /// send only what the simulator newly gave. Wheels without a finite value are dropped, and
-    /// nothing is queued when no wheel has any reading left.
-    pub fn tyre_readings(&mut self, local: u64, mut readings: TyreReadings) {
-        for w in [
-            &mut readings.wheels.fl,
-            &mut readings.wheels.fr,
-            &mut readings.wheels.rl,
-            &mut readings.wheels.rr,
-        ] {
-            *w = w.take().map(TyreWheel::finite).filter(|w| !w.is_empty());
-        }
-        if readings.wheels.is_empty() {
+    /// Queues simulator data: values the simulator gave at a moment (a stop, a reset, the garage,
+    /// a penalty notice...) that Pitwall has no typed message for. `kind` is the connector's name
+    /// for the structure of `data`; describe every kind first with
+    /// [`sim_data_kinds`](Self::sim_data_kinds) (a record of an undescribed kind is stored, but
+    /// the race engineer reads it without field descriptions). A kind's fields never change
+    /// meaning: a changed meaning is a new kind.
+    ///
+    /// Send every lap that ended before the data first, and a stop's data before its
+    /// [`pit_exit`](Self::pit_exit): Pitwall files it under the current stint and the last lap it
+    /// holds. The same data sent twice is two records: send only what the simulator newly gave.
+    /// Not for samples: those belong in a lap's channels.
+    ///
+    /// The record is checked here against the limits of [`stintmate_connector_wire::sim_data`]
+    /// (what Pitwall checks): a record that breaks one is logged at error level with the reason
+    /// and dropped, so nothing queued is ever refused for its content.
+    pub fn sim_data(
+        &mut self,
+        local: u64,
+        kind: &str,
+        taken_at: &str,
+        data: serde_json::Map<String, serde_json::Value>,
+    ) {
+        if let Err(e) = limits::check_data(kind, &data) {
+            tracing::error!("Simulator data of kind {kind:?} refused locally: {e} (dropped)");
             return;
         }
-        self.core.send(Job::TyreReadings(local, Box::new(readings)));
+        self.core.send(Job::SimData(
+            local,
+            kind.to_owned(),
+            taken_at.to_owned(),
+            data,
+        ));
+    }
+
+    /// Describes the kinds of simulator data this connector sends (what a record is, and what
+    /// each field means and measures), so the race engineer reads them without guessing. Call it
+    /// once at start: the sink keeps the last description given and sends it again before every
+    /// session start, under a key made of its content, so Pitwall stores it once. Checked here
+    /// against the limits of [`stintmate_connector_wire::sim_data`]; a description that breaks
+    /// one is logged at error level and dropped.
+    pub fn sim_data_kinds(&mut self, kinds: Vec<SimDataKind>) {
+        if let Err(e) = limits::check_kinds(&kinds) {
+            tracing::error!("Simulator data kinds refused locally: {e} (dropped)");
+            return;
+        }
+        self.core
+            .send(Job::SimDataKinds(Box::new(SimDataKinds { kinds })));
     }
 
     /// Queues a catalog write in the middle of a session, for cars first seen after it opened
@@ -475,6 +516,14 @@ impl<C: ResumeClock> Core<C> {
         }
     }
 
+    /// Stores the last `sim_data_kinds` message, if one was given.
+    fn put_kinds(&self) {
+        let kinds = lock(&self.kinds).clone();
+        if let Some((ik, params)) = kinds {
+            self.put("sim_data_kinds", &ik, params);
+        }
+    }
+
     fn catalog(&self, cat: &Catalog) {
         let json = serde_json::to_value(cat).expect("a catalog serializes");
         self.put("catalog", &catalog_key(self.prefix, &json), to_value(cat));
@@ -488,7 +537,7 @@ impl<C: ResumeClock> Core<C> {
             "lap" => &mut s.seq_lap,
             "setup" => &mut s.seq_setup,
             "pit_exit" => &mut s.seq_pit_exit,
-            "tyre_readings" => &mut s.seq_tyre_readings,
+            "sim_data" => &mut s.seq_sim_data,
             "participants" => &mut s.seq_participants,
             other => {
                 tracing::error!("Unknown write kind {other} (dropped)");
@@ -524,6 +573,8 @@ impl<C: ResumeClock> Core<C> {
                 if let Some(cat) = cat {
                     self.catalog(&cat);
                 }
+                // The descriptions go before every session: Pitwall writes a content once.
+                self.put_kinds();
                 let params = with(
                     to_value(&start),
                     vec![("session_key", Value::from(key.as_str()))],
@@ -591,11 +642,33 @@ impl<C: ResumeClock> Core<C> {
                 let msg = PitExit { at, fuel_l };
                 self.put_seq("pit_exit", "pit_exit", &key, seq, to_value(&msg));
             }
-            Job::TyreReadings(local, msg) => {
-                let Some((key, seq)) = self.next(local, "tyre_readings") else {
+            Job::SimData(local, kind, taken_at, data) => {
+                let Some((key, seq)) = self.next(local, "sim_data") else {
                     return;
                 };
-                self.put_seq("tyre_readings", "tyre_readings", &key, seq, to_value(&*msg));
+                if seq > limits::MAX_PER_SESSION {
+                    tracing::error!(
+                        "Session {key} already holds {} simulator data records (dropped)",
+                        limits::MAX_PER_SESSION
+                    );
+                    return;
+                }
+                let msg = SimData {
+                    taken_at,
+                    kind,
+                    data,
+                };
+                self.put_seq("sim_data", "sim_data", &key, seq, to_value(&msg));
+            }
+            Job::SimDataKinds(msg) => {
+                let json = serde_json::to_value(&*msg).expect("kinds serialize");
+                let ik = format!(
+                    "{}/sim_data_kinds/{}",
+                    self.prefix,
+                    sha12(&canonical(&json))
+                );
+                *lock(&self.kinds) = Some((ik, to_value(&*msg)));
+                self.put_kinds();
             }
             Job::Catalog(cat) => self.catalog(&cat),
             Job::Participants(local, rows) => {
@@ -1016,20 +1089,41 @@ mod tests {
         a.close(Duration::ZERO);
     }
 
-    fn readings(occasion: &str) -> TyreReadings {
-        use stintmate_connector_wire::messages::TyreWheels;
-        TyreReadings {
-            taken_at: "2026-10-25T10:02:00.000+02:00".into(),
-            occasion: occasion.into(),
-            wheels: TyreWheels {
-                fl: Some(TyreWheel {
-                    carcass_mid_c: Some(75.5),
-                    tread_mid: Some(0.98),
-                    ..TyreWheel::default()
-                }),
-                ..TyreWheels::default()
-            },
-        }
+    use stintmate_connector_wire::messages::SimDataField;
+
+    /// A record of the shape of a real iRacing set (row 25317 of a recorded pit stop).
+    fn data(occasion: &str) -> serde_json::Map<String, serde_json::Value> {
+        serde_json::json!({
+            "occasion": occasion,
+            "wheels": {"fl": {"carcass_mid_c": 75.56, "tread_mid": 0.9817}},
+        })
+        .as_object()
+        .unwrap()
+        .clone()
+    }
+
+    const AT: &str = "2026-10-25T10:02:00.000+02:00";
+
+    fn kinds() -> Vec<SimDataKind> {
+        let field = |meaning: &str, unit: Option<&str>| SimDataField {
+            meaning: meaning.into(),
+            unit: unit.map(str::to_owned),
+        };
+        vec![SimDataKind {
+            kind: "stall_tyres".into(),
+            description: "Tyre readings given in the pits.".into(),
+            topic: Some("tyres".into()),
+            fields: std::collections::BTreeMap::from([
+                (
+                    "occasion".to_owned(),
+                    field("Why the car was in the pits.", None),
+                ),
+                (
+                    "wheels.*.tread_mid".to_owned(),
+                    field("Tread remaining, 1 is new.", Some("fraction")),
+                ),
+            ]),
+        }]
     }
 
     /// The idempotency keys of the outbox's files, in order.
@@ -1042,44 +1136,134 @@ mod tests {
     }
 
     #[test]
-    fn tyre_readings_get_their_own_key_and_sequence_per_session() {
+    fn sim_data_gets_one_key_and_sequence_per_session_for_every_kind() {
         let dir = tempfile::tempdir().unwrap();
         let mut a = recorder(dir.path(), 4242, "sample-sim");
         let key = open(&mut a, "RACE");
-        a.tyre_readings(1, readings("pit_stop"));
+        a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
         a.pit_exit(1, "t", None);
-        a.tyre_readings(1, readings("reset"));
+        a.sim_data(1, "damage", AT, data("reset"));
         assert!(a.queued(Duration::from_secs(5)));
         for ik in [
-            format!("sample-sim/{key}/tyre_readings/1"),
-            format!("sample-sim/{key}/tyre_readings/2"),
+            format!("sample-sim/{key}/sim_data/1"),
+            format!("sample-sim/{key}/sim_data/2"),
             format!("sample-sim/{key}/pit_exit/1"),
         ] {
             assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
         }
-        assert_eq!(
-            stored_with(dir.path(), "pitwall.write.tyre_readings"),
-            2,
-            "the method"
-        );
-        // readings without a finite value are not worth a write
-        let mut empty = readings("other");
-        empty.wheels.fl = Some(TyreWheel {
-            tread_in: Some(f64::NAN),
-            ..TyreWheel::default()
-        });
-        a.tyre_readings(1, empty);
-        assert!(a.queued(Duration::from_secs(5)));
-        assert_eq!(stored_with(dir.path(), "pitwall.write.tyre_readings"), 2);
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data"), 2);
         a.close(Duration::ZERO);
     }
 
     #[test]
-    fn the_readings_sequence_survives_a_resume_with_five_items() {
+    fn a_record_that_breaks_a_limit_queues_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        let big = serde_json::json!({"a": "x".repeat(501)})
+            .as_object()
+            .unwrap()
+            .clone();
+        let dotted = serde_json::json!({"a.b": 1}).as_object().unwrap().clone();
+        a.sim_data(1, "stall_tyres", AT, big);
+        a.sim_data(1, "stall_tyres", AT, dotted);
+        a.sim_data(1, "Stall Tyres", AT, data("pit_stop"));
+        let mut bad_kinds = kinds();
+        bad_kinds[0].fields.clear();
+        a.sim_data_kinds(bad_kinds);
+        a.sim_data_kinds(Vec::new());
+        a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data"), 1);
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data_kinds"), 0);
+        // the refused ones took no sequence number
+        assert_eq!(
+            stored_with(dir.path(), &format!("sample-sim/{key}/sim_data/1")),
+            1
+        );
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn the_per_session_cap_is_pitwalls_5000() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        for _ in 0..limits::MAX_PER_SESSION + 2 {
+            a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
+        }
+        assert!(a.queued(Duration::from_secs(60)));
+        assert_eq!(
+            stored_with(dir.path(), "pitwall.write.sim_data"),
+            usize::try_from(limits::MAX_PER_SESSION).unwrap()
+        );
+        assert_eq!(
+            stored_with(dir.path(), &format!("sample-sim/{key}/sim_data/5001")),
+            0
+        );
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn kinds_go_before_every_session_start_under_one_content_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        a.sim_data_kinds(kinds());
+        let first = open(&mut a, "RACE");
+        a.end_session(1, "2026-10-25T10:05:00.000+02:00");
+        let second = open_at(&mut a, "QUALIFY", clock(1800.0, 0));
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_ne!(first, second);
+        let params = serde_json::json!({"kinds": kinds()
+            .iter()
+            .map(|k| serde_json::to_value(k).unwrap())
+            .collect::<Vec<_>>()});
+        let ik = format!("sample-sim/sim_data_kinds/{}", sha12(&canonical(&params)));
+        // queued when given, and again before each of the two starts: one key throughout
+        assert_eq!(stored_with(dir.path(), &ik), 3);
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data_kinds"), 3);
+        // in the outbox, each description precedes the start it belongs to
+        let mut files: Vec<_> = std::fs::read_dir(dir.path().join("outbox"))
+            .unwrap()
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .collect();
+        files.sort();
+        let order: Vec<&str> = files
+            .iter()
+            .filter_map(|p| std::fs::read(p).ok())
+            .filter_map(|t| {
+                [
+                    ("pitwall.write.sim_data_kinds", "kinds"),
+                    ("pitwall.write.session_start", "start"),
+                ]
+                .into_iter()
+                .find(|(m, _)| contains(&t, m.as_bytes()))
+                .map(|(_, n)| n)
+            })
+            .collect();
+        assert_eq!(order, ["kinds", "kinds", "start", "kinds", "start"]);
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn kinds_given_after_a_session_start_are_sent_now_and_at_the_next_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        open(&mut a, "RACE");
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data_kinds"), 0);
+        a.sim_data_kinds(kinds());
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_eq!(stored_with(dir.path(), "pitwall.write.sim_data_kinds"), 1);
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn the_sim_data_sequence_survives_a_resume_with_five_items() {
         let dir = tempfile::tempdir().unwrap();
         let mut a = recorder(dir.path(), 4242, "example");
         let key = open(&mut a, "PRACTICE");
-        a.tyre_readings(1, readings("pit_stop"));
+        a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
         assert!(a.queued(Duration::from_secs(5)));
         stop(a, 1, true);
         let stored: serde_json::Value = serde_json::from_str(
@@ -1089,13 +1273,39 @@ mod tests {
         assert_eq!(stored["seq"], serde_json::json!([0, 0, 0, 0, 1]));
         let mut b = recorder(dir.path(), 4242, "example");
         assert_eq!(open(&mut b, "PRACTICE"), key);
-        b.tyre_readings(1, readings("pit_stop"));
+        b.sim_data(1, "stall_tyres", AT, data("pit_stop"));
         assert!(b.queued(Duration::from_secs(5)));
         assert_eq!(
-            stored_with(dir.path(), &format!("example/{key}/tyre_readings/2")),
+            stored_with(dir.path(), &format!("example/{key}/sim_data/2")),
             1
         );
         b.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn a_resume_file_of_0_2_1_with_a_tyre_readings_slot_gives_it_to_sim_data() {
+        // what 0.2.1 and 0.2.2 wrote: the fifth slot counted tyre readings; keys only need to be
+        // unique, so the value is simply taken over
+        let dir = tempfile::tempdir().unwrap();
+        let identity = "Example Car|Example Park|Short|PRACTICE";
+        std::fs::write(
+            dir.path().join("session-resume.json"),
+            serde_json::json!({
+                "game": 4242, "clock": {"left": 1500.0, "laps": 3}, "key": "00aa00aa00aa00aa",
+                "identity": identity, "seq": [3, 2, 1, 4, 2],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let mut a = recorder(dir.path(), 4242, "example");
+        assert_eq!(open(&mut a, "PRACTICE"), "00aa00aa00aa00aa");
+        a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_eq!(
+            stored_with(dir.path(), "example/00aa00aa00aa00aa/sim_data/3"),
+            1
+        );
+        a.close(Duration::ZERO);
     }
 
     #[test]
@@ -1115,9 +1325,9 @@ mod tests {
         let mut a = recorder(dir.path(), 4242, "example");
         assert_eq!(open(&mut a, "PRACTICE"), "00aa00aa00aa00aa");
         a.pit_exit(1, "t", None);
-        a.tyre_readings(1, readings("pit_stop"));
+        a.sim_data(1, "stall_tyres", AT, data("pit_stop"));
         assert!(a.queued(Duration::from_secs(5)));
-        for ik in ["pit_exit/2", "tyre_readings/1"] {
+        for ik in ["pit_exit/2", "sim_data/1"] {
             let ik = format!("example/00aa00aa00aa00aa/{ik}");
             assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
         }

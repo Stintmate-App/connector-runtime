@@ -13,8 +13,8 @@ The smallest working example is in this repository: a spec of made-up values,
 ## 1. Dependencies
 
 See "Using it" in the [README](../README.md): the crates as git dependencies with
-`tag = "v0.2.2"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
-(v0.3.3 for release 0.2.1). The recorder needs `platform`, `wire` and `link`; the control app
+`tag = "v0.3.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
+(v0.3.3 for release 0.3.0). The recorder needs `platform`, `wire` and `link`; the control app
 needs `platform` and `control`; the window needs `window`; `resources` goes in
 `[build-dependencies]` and `testing` in `[dev-dependencies]`.
 
@@ -65,7 +65,7 @@ pub static SPEC: ConnectorSpec = ConnectorSpec {
 | `autostart_value` | the name of the `HKCU\...\Run` value that starts the control app with Windows | none |
 | `game` | how to recognise the game, below | see below |
 | `recorder_hz` | the default of `recorder_hz` in `ui_config.json`, and the recorder's rate when `--hz` is absent | within `1.0..=200.0` |
-| `features` | the features the descriptor declares, a subset of `spec::FEATURES` (the connector kit's vocabulary, 20 names); the descriptor lists the control app's own five first | every name in `FEATURES` |
+| `features` | the features the descriptor declares, a subset of `spec::FEATURES` (the connector kit's vocabulary, 21 names); the descriptor lists the control app's own five first | every name in `FEATURES` |
 | `ui_catalog` | the embedded English UI catalog, as JSON text (section 5) | none; checked by `check_ui_catalog` |
 | `glyph` | the mark drawn on the icons when `icon` is `None`: `Glyph::A`, `Glyph::I` or your own strokes | none |
 | `icon` | the connector's own artwork, `Some(ConnectorIcon { png_32, png_64 })` with two 8-bit RGBA PNG files (32 x 32 and 64 x 64) embedded with `include_bytes!`, or `None` to draw the glyph. The tray shows the artwork with a badge of the level in its lower right corner (grey off, green ok, amber warn, red error); the window shows the artwork alone. A file that does not decode is logged and the glyph is drawn instead; call `icon.rgba(32)` and `icon.rgba(64)` in a test of yours to catch it at build time | none |
@@ -210,8 +210,23 @@ sink.end_session(session, &ended_at);
 - `ik_prefix` must be the connector's id (`SPEC.id`), as the idempotency keys of the contract
   start with it.
 - `start_session` returns the session's local number for the other calls: `lap`, `setup`,
-  `pit_exit`, `participants`, `tyre_readings`, `end_session`, and `catalog` for cars first seen after the
+  `pit_exit`, `participants`, `sim_data`, `end_session`, and `catalog` for cars first seen after the
   session opened. Builders (`LapBuild`, `SetupBuild`) run on the sink's writer thread.
+- **Simulator data.** Values the game gives at a moment (a stop, a reset, a garage visit, a
+  penalty notice, a damage report) that Pitwall has no typed message for go in `sim_data`:
+  `sink.sim_data(session, "kind_name", &taken_at, data)` with `data` a `serde_json::Map` of your
+  own design, and `sink.sim_data_kinds(kinds)` with a `SimDataKind` per kind (what a record is, an
+  optional `topic`, and the meaning and unit of every field path; a `*` segment stands for any key
+  or array index). Describe your kinds once at start: the sink sends the description again before
+  every session start under a key made of its content, so Pitwall stores it once. A kind's fields
+  never change meaning: a changed meaning is a new kind name. Per-sample data is not for
+  `sim_data`: use a lap's channels. Both calls check their input with
+  `stintmate_connector_wire::sim_data` (`check_data`, `check_kinds`, the limits as constants: 16,384
+  bytes of compact JSON, 6 levels, 512 keys, 256 items per array, 500 characters per string, 5,000
+  records per session) and log a refusal at error level instead of queueing a write Pitwall would
+  refuse; call `check_data` in your own tests to see the reason. Send every lap that ended before
+  the data first, and a stop's data before its `pit_exit`. A Pitwall that predates simulator data
+  answers `unknown_method`; the outbox drops those writes.
 - The messages are the structs of `stintmate_connector_wire::messages`. A lap's channels are
   `LapChannels`, serialized as binary `f32` arrays.
 - `set_game_token`, `keep_session_open` and `note_clock` feed the resume logic; `stats`,

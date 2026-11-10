@@ -7,6 +7,7 @@
 //!   the typed parameters of a message ([`catalog::AnnounceCatalog`]).
 //! * [`rate`]: the sliding window of the announcement rate limit.
 //! * [`actions`]: the two standard actions every connector declares.
+//! * [`sim_data`]: the limits of the simulator data records and their local checks.
 //! * [`schema_check`]: a small JSON Schema checker for tests, and the two schemas the formats
 //!   above are checked against.
 //!
@@ -19,6 +20,7 @@ pub mod catalog;
 pub mod messages;
 pub mod rate;
 pub mod schema_check;
+pub mod sim_data;
 pub mod telemetry;
 
 /// Python-compatible `round(x, ndigits)`: correctly rounded, ties to even on the exact value.

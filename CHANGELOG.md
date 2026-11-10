@@ -2,6 +2,22 @@
 
 All notable changes to this project are written here.
 
+## 0.3.0 (2026-11-11)
+
+**Breaking**: the tyre-reading types of 0.2.1 are removed, so the minor version moves. That message was replaced in the connector kit before any connector shipped it by a generic one for data the game gives at a moment; use `WriteSink::sim_data` and `WriteSink::sim_data_kinds`.
+
+- **Removed.** `stintmate_connector_wire::messages::TyreReadings`, `TyreWheels` and `TyreWheel`, and `WriteSink::tyre_readings`. The feature `tyre_readings` is no longer in `spec::FEATURES`, and the fake Pitwall of `stintmate-connector-testing` no longer answers `pitwall.write.tyre_readings`.
+- **Simulator data.** Two write messages, from connector kit 0.6.0. `messages::SimData { taken_at, kind, data }` (`data` is a `serde_json::Map`) is a record of a structure the connector designs, stored as sent; `messages::SimDataKinds { kinds }`, with `SimDataKind { kind, description, topic, fields }` and `SimDataField { meaning, unit }`, describes each kind field by field so the race engineer reads the records without guessing (a field path is dotted, a `*` segment stands for any key or array index). A kind's fields never change meaning: a changed meaning is a new kind name.
+- **`WriteSink::sim_data(local, kind, taken_at, data)`**, sent as `pitwall.write.sim_data` with the idempotency key `<prefix>/<session_key>/sim_data/<seq>`; one sequence per session for all kinds. Send every lap that ended before the data first, and a stop's data before its `pit_exit`.
+- **`WriteSink::sim_data_kinds(kinds)`**, sent as `pitwall.write.sim_data_kinds` with the key `<prefix>/sim_data_kinds/<sha12 of the canonical params>` (the catalog's rule). The sink keeps the last description given and queues it again before every `session_start` it sends, so Pitwall (which writes a content once) always has the descriptions of the session it receives.
+- **Local checks.** The new module `stintmate_connector_wire::sim_data` holds the limits as public constants (data of at most 16,384 bytes of compact JSON, 6 nested levels, 512 keys in all, 256 items per array, 500 characters per string, safe integers, 5,000 records per session, 32 kinds, 64 fields per kind) and `check_data(kind, &Map)` and `check_kinds(&[SimDataKind])`, with the texts of Pitwall's error replies. Both sink calls use them: a record or description that breaks a limit is logged at error level with the reason and dropped, and so is the 5,001st record of a session.
+- **Feature.** `spec::FEATURES` has `sim_data` (the kit's feature vocabulary) in place of `tyre_readings`.
+- **Resume file.** `session-resume.json` keeps five write sequences; the fifth is now `sim_data`'s. A file written by 0.2.1 or 0.2.2, whose fifth counted tyre readings, hands that value to `sim_data` (keys only need to be unique); a file with four items reads the fifth as 0.
+- **Needs a Pitwall that implements simulator data.** An older one answers `unknown_method` to both messages; the outbox drops those writes without retrying.
+- **Testing.** The fake Pitwall answers `pitwall.write.sim_data` and `pitwall.write.sim_data_kinds`. The schema fixture of the wire tests is the kit's write API schema of 0.6.0.
+
+To migrate, replace each `tyre_readings(local, r)` with a `sim_data` kind of your connector: describe it once with `sim_data_kinds` and send each record with `sim_data`. Declare the feature `sim_data` instead of `tyre_readings`.
+
 ## 0.2.2 (2026-11-10)
 
 - **The feature `tyre_readings`.** `FEATURES` (the contract vocabulary a connector's declared features are checked against) gains `tyre_readings`, from connector-kit 0.5.0, so a connector that sends `tyre_readings` can declare it. No other change.

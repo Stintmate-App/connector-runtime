@@ -140,10 +140,18 @@ messages, or closures that build them, and it does the rest on its own thread na
 - A session is named by a **session key**, 16 random hex digits (`new_session_key`) chosen when
   the connector opens it (`start_session`).
 - Every write gets an **idempotency key**, assigned by the sink and stored with the write:
-  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`, `.../tyre_readings/<seq>`,
+  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`, `.../sim_data/<seq>`,
   `.../participants/<seq>` and `.../end`, and `<prefix>/catalog/<12 hex digits of the SHA-256>`
-  for a catalog. The prefix is the connector's id. Sending the same write again is therefore
+  for a catalog, `<prefix>/sim_data_kinds/<12 hex digits of the SHA-256>` for the description of the
+  simulator data kinds. The prefix is the connector's id. Sending the same write again is therefore
   harmless.
+- **Simulator data** (`sim_data`, `sim_data_kinds`) shares one sequence per session for every kind.
+  The sink keeps the last description of the kinds and queues it again before every
+  `session_start` it sends; its key is made of its content, so the same description is one write.
+  Both calls check their input locally (`stintmate_connector_wire::sim_data`) and drop what Pitwall
+  would refuse. `session-resume.json` keeps five sequences; the fifth is `sim_data`'s (a file
+  written by 0.2.1 or 0.2.2, whose fifth counted the removed tyre readings, hands its value over:
+  keys only need to be unique; a four-item file reads the fifth as 0).
 - **Laps and setups are built by closures** (`LapBuild`, `SetupBuild`) that run on the writer
   thread, so the loop only moves the data it already has.
 - **Session resume.** A recorder stopped while the game runs does not end its session. It

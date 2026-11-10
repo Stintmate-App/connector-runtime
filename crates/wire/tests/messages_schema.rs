@@ -302,81 +302,105 @@ fn pit_exit_validates() {
     );
 }
 
-fn tyre_wheel_full() -> TyreWheel {
-    TyreWheel {
-        carcass_in_c: Some(74.1),
-        carcass_mid_c: Some(75.56),
-        carcass_out_c: Some(73.9),
-        surface_in_c: Some(60.0),
-        surface_mid_c: Some(61.0),
-        surface_out_c: Some(59.5),
-        tread_in: Some(0.9811),
-        tread_mid: Some(0.9817),
-        tread_out: Some(0.9822),
-        pressure_hot_kpa: Some(185.5),
+fn sim_data(data: Value) -> SimData {
+    SimData {
+        taken_at: "2026-11-07T11:52:41.512+01:00".into(),
+        kind: "stall_tyres".into(),
+        data: data.as_object().unwrap().clone(),
+    }
+}
+
+fn kinds_message() -> SimDataKinds {
+    let field = |meaning: &str, unit: Option<&str>| SimDataField {
+        meaning: meaning.into(),
+        unit: unit.map(str::to_owned),
+    };
+    SimDataKinds {
+        kinds: vec![
+            SimDataKind {
+                kind: "stall_tyres".into(),
+                description: "Tyre temperatures and tread given only in the pits.".into(),
+                topic: Some("tyres".into()),
+                fields: BTreeMap::from([
+                    (
+                        "occasion".to_owned(),
+                        field("Why the car was in the pits.", None),
+                    ),
+                    (
+                        "wheels.*.carcass_in_c".to_owned(),
+                        field("Carcass temperature, inner edge.", Some("C")),
+                    ),
+                ]),
+            },
+            SimDataKind {
+                kind: "damage".into(),
+                description: "A damage report.".into(),
+                topic: None,
+                fields: BTreeMap::from([("parts.*".to_owned(), field("Damage of a part.", None))]),
+            },
+        ],
     }
 }
 
 #[test]
-fn tyre_readings_validate() {
-    for occasion in ["pit_stop", "reset", "car_entry", "garage", "other"] {
-        ok(
-            "tyre_readings",
-            true,
-            &TyreReadings {
-                taken_at: "2026-11-07T11:52:41.512+01:00".into(),
-                occasion: occasion.into(),
-                wheels: TyreWheels {
-                    fl: Some(tyre_wheel_full()),
-                    fr: Some(tyre_wheel_full()),
-                    rl: Some(tyre_wheel_full()),
-                    rr: Some(tyre_wheel_full()),
-                },
-            },
-        );
-    }
-    // the smallest message: one wheel, one reading
+fn sim_data_validates() {
     ok(
-        "tyre_readings",
+        "sim_data",
         true,
-        &TyreReadings {
-            taken_at: "2026-11-07T11:52:41Z".into(),
-            occasion: "other".into(),
-            wheels: TyreWheels {
-                rr: Some(TyreWheel {
-                    tread_mid: Some(1.0),
-                    ..TyreWheel::default()
-                }),
-                ..TyreWheels::default()
-            },
-        },
+        &sim_data(json!({
+            "occasion": "pit_stop",
+            "wheels": {"fl": {"carcass_in_c": 74.1, "tread_mid": 0.9817}, "rr": {"tread_mid": 1.0}},
+            "flags": [true, null, "x"]
+        })),
     );
+    // the smallest message: an empty structure
+    ok("sim_data", true, &sim_data(json!({})));
 }
 
 #[test]
-fn the_schema_refuses_bad_tyre_readings() {
-    let good = TyreReadings {
-        taken_at: "2026-11-07T11:52:41Z".into(),
-        occasion: "pit_stop".into(),
-        wheels: TyreWheels {
-            fl: Some(tyre_wheel_full()),
-            ..TyreWheels::default()
-        },
-    };
+// The schema checker used here does not evaluate `pattern`: the name patterns are covered by
+// `stintmate_connector_wire::sim_data` tests.
+fn the_schema_refuses_bad_sim_data() {
+    let good = sim_data(json!({"occasion": "pit_stop"}));
     let bad = |edit: &dyn Fn(&mut Value)| {
-        let mut m = message("tyre_readings", true, &good);
+        let mut m = message("sim_data", true, &good);
         edit(&mut m);
-        refused("tyre_readings", &m);
+        refused("sim_data", &m);
     };
-    bad(&|m| m["occasion"] = json!("tyre_change"));
-    bad(&|m| m["wheels"] = json!({}));
-    bad(&|m| m["wheels"] = json!({"fl": {}}));
-    bad(&|m| m["wheels"]["fl"]["tread_in"] = json!(1.5));
-    bad(&|m| m["wheels"]["fl"]["carcass_mid_c"] = json!(600));
-    bad(&|m| m["wheels"]["fl"]["pressure_hot_kpa"] = json!(0));
-    bad(&|m| m["wheels"]["xx"] = json!({"tread_in": 0.5}));
+    bad(&|m| m["kind"] = json!(""));
+    bad(&|m| m["data"] = json!([1, 2]));
+    bad(&|m| m["data"] = json!("text"));
+    bad(&|m| m["extra"] = json!(1));
     bad(&|m| {
         m.as_object_mut().unwrap().remove("session_id");
+    });
+    bad(&|m| {
+        m.as_object_mut().unwrap().remove("kind");
+    });
+}
+
+#[test]
+fn sim_data_kinds_validate() {
+    ok("sim_data_kinds", false, &kinds_message());
+}
+
+#[test]
+fn the_schema_refuses_bad_sim_data_kinds() {
+    let bad = |edit: &dyn Fn(&mut Value)| {
+        let mut m = message("sim_data_kinds", false, &kinds_message());
+        edit(&mut m);
+        refused("sim_data_kinds", &m);
+    };
+    bad(&|m| m["kinds"] = json!([]));
+    bad(&|m| m["kinds"][0]["description"] = json!(""));
+    bad(&|m| m["kinds"][0]["topic"] = json!("wheels"));
+    bad(&|m| m["kinds"][0]["fields"] = json!({}));
+    bad(&|m| m["kinds"][0]["fields"]["occasion"] = json!({"unit": "C"}));
+    bad(&|m| m["kinds"][0]["fields"]["occasion"]["meaning"] = json!(""));
+    bad(&|m| m["kinds"][0]["fields"]["occasion"]["extra"] = json!(1));
+    bad(&|m| m["kinds"][0]["unknown"] = json!(1));
+    bad(&|m| {
+        m.as_object_mut().unwrap().remove("kinds");
     });
 }
 

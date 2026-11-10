@@ -20,7 +20,7 @@ pub const FEATURES: [&str; 21] = [
     "capture_target",
     "brake_cues",
     "setups",
-    "tyre_readings",
+    "sim_data",
     "fuel",
     "sectors",
     "conditions",
