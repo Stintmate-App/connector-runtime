@@ -2,6 +2,10 @@
 
 All notable changes to this project are written here.
 
+## Unreleased
+
+- **CI on pull requests.** The `ci` workflow runs on every pull request to `main` (and by hand). No code change.
+
 ## 0.1.3+docs.3 (2026-11-10)
 
 - **Hooks.** `.githooks/` runs `cargo fmt --all --check` before a commit and clippy before a push
