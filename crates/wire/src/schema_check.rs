@@ -158,6 +158,14 @@ fn check(
                     }
                 }
             }
+            "minProperties" | "maxProperties" => {
+                if let (Some(o), Some(b)) = (v.as_object(), rule.as_u64()) {
+                    let n = o.len() as u64;
+                    if (key == "minProperties" && n < b) || (key == "maxProperties" && n > b) {
+                        errs.push(format!("{path}: {n} properties violates {key} {b}"));
+                    }
+                }
+            }
             "minItems" | "maxItems" => {
                 if let (Some(a), Some(b)) = (v.as_array(), rule.as_u64()) {
                     let n = a.len() as u64;

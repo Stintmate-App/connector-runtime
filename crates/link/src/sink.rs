@@ -14,7 +14,7 @@
 //! it under the same key (Pitwall keeps the session open across restarts and replays the first
 //! answer to `session_start`, so nothing is announced twice). Anything else gets a new key. Each
 //! write has an idempotency key
-//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|end`,
+//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|tyre_readings/<seq>|end`,
 //! `<prefix>/catalog/<sha256-12>` for a catalog, assigned here and stored with the write.
 
 use crate::link::{Transport, to_value};
@@ -28,6 +28,7 @@ use std::time::Duration;
 use stintmate_connector_wire::catalog::{canonical, sha12};
 use stintmate_connector_wire::messages::{
     Catalog, Lap, ParticipantLap, ParticipantLaps, PitExit, SessionEnd, SessionStart, Setup,
+    TyreReadings, TyreWheel,
 };
 use stintmate_ipc::codec::{self, Value};
 
@@ -90,6 +91,7 @@ struct Session {
     seq_setup: u64,
     seq_pit_exit: u64,
     seq_participants: u64,
+    seq_tyre_readings: u64,
     remote_id: Option<i64>,
     stint: Option<i64>,
 }
@@ -120,6 +122,7 @@ enum Job<C> {
     Setup(u64, String, String, SetupBuild),
     PitExit(u64, String, Option<f64>),
     Participants(u64, Vec<ParticipantLap>),
+    TyreReadings(u64, Box<TyreReadings>),
     Catalog(Box<Catalog>),
     Split(String, Vec<Value>),
     Mark(Sender<()>),
@@ -148,7 +151,9 @@ struct Core<C: ResumeClock> {
 fn resume_json<C: ResumeClock>(token: u64, s: &Session, clock: &C) -> serde_json::Value {
     serde_json::json!({
         "game": token, "clock": clock.to_json(), "key": s.key, "identity": s.identity,
-        "seq": [s.seq_lap, s.seq_setup, s.seq_pit_exit, s.seq_participants],
+        "seq": [
+            s.seq_lap, s.seq_setup, s.seq_pit_exit, s.seq_participants, s.seq_tyre_readings,
+        ],
     })
 }
 
@@ -160,7 +165,7 @@ fn take_resume<C: ResumeClock>(
     token: Option<u64>,
     identity: &str,
     now: Option<&C>,
-) -> Option<(String, [u64; 4])> {
+) -> Option<(String, [u64; 5])> {
     let text = std::fs::read_to_string(path).ok()?;
     let _ = std::fs::remove_file(path);
     let v: serde_json::Value = serde_json::from_str(&text).ok()?;
@@ -175,7 +180,7 @@ fn take_resume<C: ResumeClock>(
         && text_of("identity") == Some(identity);
     let key = text_of("key").filter(|k| same && !k.is_empty())?;
     let seq = v.get("seq")?.as_array()?;
-    let mut n = [0u64; 4];
+    let mut n = [0u64; 5];
     for (slot, x) in n.iter_mut().zip(seq) {
         *slot = x.as_u64()?;
     }
@@ -343,7 +348,7 @@ impl<C: ResumeClock> WriteSink<C> {
             let token = *lock(&self.core.game_token);
             let now = lock(&self.core.start_clock).clone();
             let (key, seq) = take_resume(&self.core.resume_path, token, &identity, now.as_ref())
-                .unwrap_or_else(|| (new_session_key(), [0; 4]));
+                .unwrap_or_else(|| (new_session_key(), [0; 5]));
             sh.by_key.insert(key.clone(), local);
             sh.sessions.insert(
                 local,
@@ -354,6 +359,7 @@ impl<C: ResumeClock> WriteSink<C> {
                     seq_setup: seq[1],
                     seq_pit_exit: seq[2],
                     seq_participants: seq[3],
+                    seq_tyre_readings: seq[4],
                     ..Session::default()
                 },
             );
@@ -390,6 +396,27 @@ impl<C: ResumeClock> WriteSink<C> {
     /// Queues the other drivers' laps.
     pub fn participants(&mut self, local: u64, rows: Vec<ParticipantLap>) {
         self.core.send(Job::Participants(local, rows));
+    }
+
+    /// Queues tyre readings the simulator gave at a moment (a stop, a reset, the driver getting
+    /// into the car, the garage). Send every lap that ended before the readings first, and a
+    /// stop's readings before its [`pit_exit`](Self::pit_exit): Pitwall files them under the
+    /// current stint and the last lap it holds. The same readings sent twice are two readings:
+    /// send only what the simulator newly gave. Wheels without a finite value are dropped, and
+    /// nothing is queued when no wheel has any reading left.
+    pub fn tyre_readings(&mut self, local: u64, mut readings: TyreReadings) {
+        for w in [
+            &mut readings.wheels.fl,
+            &mut readings.wheels.fr,
+            &mut readings.wheels.rl,
+            &mut readings.wheels.rr,
+        ] {
+            *w = w.take().map(TyreWheel::finite).filter(|w| !w.is_empty());
+        }
+        if readings.wheels.is_empty() {
+            return;
+        }
+        self.core.send(Job::TyreReadings(local, Box::new(readings)));
     }
 
     /// Queues a catalog write in the middle of a session, for cars first seen after it opened
@@ -461,7 +488,12 @@ impl<C: ResumeClock> Core<C> {
             "lap" => &mut s.seq_lap,
             "setup" => &mut s.seq_setup,
             "pit_exit" => &mut s.seq_pit_exit,
-            _ => &mut s.seq_participants,
+            "tyre_readings" => &mut s.seq_tyre_readings,
+            "participants" => &mut s.seq_participants,
+            other => {
+                tracing::error!("Unknown write kind {other} (dropped)");
+                return None;
+            }
         };
         *seq += 1;
         Some((s.key.clone(), *seq))
@@ -558,6 +590,12 @@ impl<C: ResumeClock> Core<C> {
                 };
                 let msg = PitExit { at, fuel_l };
                 self.put_seq("pit_exit", "pit_exit", &key, seq, to_value(&msg));
+            }
+            Job::TyreReadings(local, msg) => {
+                let Some((key, seq)) = self.next(local, "tyre_readings") else {
+                    return;
+                };
+                self.put_seq("tyre_readings", "tyre_readings", &key, seq, to_value(&*msg));
             }
             Job::Catalog(cat) => self.catalog(&cat),
             Job::Participants(local, rows) => {
@@ -975,6 +1013,114 @@ mod tests {
         );
         assert_eq!(rows.len(), 1);
         assert!(cat[0] < rows[0] && rows[0] < cat[1], "queue order is kept");
+        a.close(Duration::ZERO);
+    }
+
+    fn readings(occasion: &str) -> TyreReadings {
+        use stintmate_connector_wire::messages::TyreWheels;
+        TyreReadings {
+            taken_at: "2026-10-25T10:02:00.000+02:00".into(),
+            occasion: occasion.into(),
+            wheels: TyreWheels {
+                fl: Some(TyreWheel {
+                    carcass_mid_c: Some(75.5),
+                    tread_mid: Some(0.98),
+                    ..TyreWheel::default()
+                }),
+                ..TyreWheels::default()
+            },
+        }
+    }
+
+    /// The idempotency keys of the outbox's files, in order.
+    fn stored_with(dir: &Path, needle: &str) -> usize {
+        std::fs::read_dir(dir.join("outbox"))
+            .unwrap()
+            .filter_map(|e| std::fs::read(e.ok()?.path()).ok())
+            .filter(|t| contains(t, needle.as_bytes()))
+            .count()
+    }
+
+    #[test]
+    fn tyre_readings_get_their_own_key_and_sequence_per_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        a.tyre_readings(1, readings("pit_stop"));
+        a.pit_exit(1, "t", None);
+        a.tyre_readings(1, readings("reset"));
+        assert!(a.queued(Duration::from_secs(5)));
+        for ik in [
+            format!("sample-sim/{key}/tyre_readings/1"),
+            format!("sample-sim/{key}/tyre_readings/2"),
+            format!("sample-sim/{key}/pit_exit/1"),
+        ] {
+            assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
+        }
+        assert_eq!(
+            stored_with(dir.path(), "pitwall.write.tyre_readings"),
+            2,
+            "the method"
+        );
+        // readings without a finite value are not worth a write
+        let mut empty = readings("other");
+        empty.wheels.fl = Some(TyreWheel {
+            tread_in: Some(f64::NAN),
+            ..TyreWheel::default()
+        });
+        a.tyre_readings(1, empty);
+        assert!(a.queued(Duration::from_secs(5)));
+        assert_eq!(stored_with(dir.path(), "pitwall.write.tyre_readings"), 2);
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn the_readings_sequence_survives_a_resume_with_five_items() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "example");
+        let key = open(&mut a, "PRACTICE");
+        a.tyre_readings(1, readings("pit_stop"));
+        assert!(a.queued(Duration::from_secs(5)));
+        stop(a, 1, true);
+        let stored: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.path().join("session-resume.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(stored["seq"], serde_json::json!([0, 0, 0, 0, 1]));
+        let mut b = recorder(dir.path(), 4242, "example");
+        assert_eq!(open(&mut b, "PRACTICE"), key);
+        b.tyre_readings(1, readings("pit_stop"));
+        assert!(b.queued(Duration::from_secs(5)));
+        assert_eq!(
+            stored_with(dir.path(), &format!("example/{key}/tyre_readings/2")),
+            1
+        );
+        b.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn a_resume_file_with_four_sequences_reads_the_fifth_as_zero() {
+        // what 0.2.0 and older wrote
+        let dir = tempfile::tempdir().unwrap();
+        let identity = "Example Car|Example Park|Short|PRACTICE";
+        std::fs::write(
+            dir.path().join("session-resume.json"),
+            serde_json::json!({
+                "game": 4242, "clock": {"left": 1500.0, "laps": 3}, "key": "00aa00aa00aa00aa",
+                "identity": identity, "seq": [3, 2, 1, 4],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let mut a = recorder(dir.path(), 4242, "example");
+        assert_eq!(open(&mut a, "PRACTICE"), "00aa00aa00aa00aa");
+        a.pit_exit(1, "t", None);
+        a.tyre_readings(1, readings("pit_stop"));
+        assert!(a.queued(Duration::from_secs(5)));
+        for ik in ["pit_exit/2", "tyre_readings/1"] {
+            let ik = format!("example/00aa00aa00aa00aa/{ik}");
+            assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
+        }
         a.close(Duration::ZERO);
     }
 }

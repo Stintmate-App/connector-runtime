@@ -6,7 +6,7 @@ to Pitwall (Stintmate's telemetry database), its outbox and sink, the write API 
 the validation of announcement catalogs. A connector supplies what is specific to its
 simulator; this library does the rest.
 
-**Status:** release 0.2.0. It is made from the code of the AMS2 connector 3.4.0 with the
+**Status:** release 0.2.1. It is made from the code of the AMS2 connector 3.4.0 with the
 simulator taken out. Everything that depends on the simulator comes in through one value, a
 [`ConnectorSpec`](#the-connector-spec).
 
@@ -48,18 +48,18 @@ this repository's `Cargo.toml` (v0.3.3 for this release):
 
 ```toml
 [dependencies]
-stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
-stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
-stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
-stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
-stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
+stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
+stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
+stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
+stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
 stintmate-ipc                 = { git = "https://github.com/Stintmate-App/stintmate-ipc", tag = "v0.3.3" }
 
 [dev-dependencies]
-stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
 
 [build-dependencies]
-stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.1" }
 ```
 
 Each crate is used by the executable that needs it, so the tray process never links egui
