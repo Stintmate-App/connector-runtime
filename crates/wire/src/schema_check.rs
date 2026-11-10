@@ -3,7 +3,7 @@
 //! keywords make the check fail loudly instead of passing silently.
 //!
 //! The two schemas of the connector kit this crate's formats follow are embedded as
-//! [`WRITE_API_SCHEMA`] and [`PROTOCOL_SCHEMA`] (copies of the kit's files, release 0.3.1).
+//! [`WRITE_API_SCHEMA`] and [`PROTOCOL_SCHEMA`] (copies of the kit's files, release 0.6.0 for the write API schema).
 
 use serde_json::Value;
 

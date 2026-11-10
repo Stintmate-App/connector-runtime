@@ -23,7 +23,10 @@
       "$ref": "#/$defs/setup"
     },
     {
-      "$ref": "#/$defs/tyre_readings"
+      "$ref": "#/$defs/sim_data"
+    },
+    {
+      "$ref": "#/$defs/sim_data_kinds"
     },
     {
       "$ref": "#/$defs/participant_laps"
@@ -1132,6 +1135,165 @@
       ],
       "additionalProperties": false
     },
+    "sim_data": {
+      "type": "object",
+      "description": "Simulator data: values the simulator gives at a moment that Pitwall has no primitive for (a stop, a reset, a garage visit...), stored as sent with the stint and the last lap of the session at arrival. Describe each kind with sim_data_kinds.",
+      "properties": {
+        "type": {
+          "const": "sim_data"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "taken_at": {
+          "description": "When the simulator gave the data, ISO 8601 with UTC offset.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "kind": {
+          "description": "The connector's name for this structure (its own, scoped by the simulator): lowercase letters, digits and '_', starting with a letter, at most 32 characters.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "data": {
+          "description": "The structure, designed by the connector and stored as sent: a JSON object (limits in docs/data-model.md, Simulator data).",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "maxProperties": 512
+        },
+        "stint": {
+          "description": "Stint number, 1-based (Pitwall numbers stints: a new one at a pit exit after the car was on track). Import mode only.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "taken_at",
+        "kind",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "sim_data_field": {
+      "type": "object",
+      "properties": {
+        "meaning": {
+          "description": "What the value is.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "unit": {
+          "description": "Its unit (C, kPa, s, m, fraction...).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 24
+        }
+      },
+      "required": [
+        "meaning"
+      ],
+      "additionalProperties": false
+    },
+    "sim_data_kind": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "description": "The connector's name for this structure (its own, scoped by the simulator): lowercase letters, digits and '_', starting with a letter, at most 32 characters.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "description": {
+          "description": "What a record is and when the connector sends one.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "topic": {
+          "description": "The guidance topic the kind belongs to; lets Pitwall's reports point at related simulator data.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "setup",
+            "capture",
+            "telemetry",
+            "session",
+            "car",
+            "track",
+            "tyres",
+            "fuel",
+            "strategy",
+            "controls",
+            "other",
+            null
+          ]
+        },
+        "fields": {
+          "description": "The meaning (and unit) of each field path of the data: dotted keys, a '*' segment stands for any key or array index.",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_*-]{1,64}(\\.[A-Za-z0-9_*-]{1,64}){0,5}$"
+          },
+          "minProperties": 1,
+          "maxProperties": 64,
+          "additionalProperties": {
+            "$ref": "#/$defs/sim_data_field"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "description",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "sim_data_kinds": {
+      "type": "object",
+      "description": "How the connector describes each kind of simulator data, so the engineer reads it without guessing. Stored per (simulator, kind); the latest description is the one read.",
+      "properties": {
+        "type": {
+          "const": "sim_data_kinds"
+        },
+        "kinds": {
+          "description": "The kinds described; each kind once.",
+          "type": "array",
+          "items": {
+            "description": "",
+            "allOf": [
+              {
+                "$ref": "#/$defs/sim_data_kind"
+              }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 32
+        }
+      },
+      "required": [
+        "type",
+        "kinds"
+      ],
+      "additionalProperties": false
+    },
     "track": {
       "type": "object",
       "properties": {
@@ -1153,178 +1315,6 @@
         "name"
       ],
       "additionalProperties": false
-    },
-    "tyre_readings": {
-      "type": "object",
-      "description": "Tyre readings the simulator gave at a moment (a stop, a reset, the garage), not live telemetry. Stored with the stint and the last lap of the session at arrival.",
-      "properties": {
-        "type": {
-          "const": "tyre_readings"
-        },
-        "session_id": {
-          "description": "The session_id returned by session_start.",
-          "type": "integer",
-          "minimum": 1
-        },
-        "taken_at": {
-          "description": "When the simulator gave the readings, ISO 8601 with UTC offset.",
-          "type": "string",
-          "format": "date-time"
-        },
-        "occasion": {
-          "description": "Why the simulator gave them.",
-          "type": "string",
-          "enum": [
-            "pit_stop",
-            "reset",
-            "car_entry",
-            "garage",
-            "other"
-          ]
-        },
-        "wheels": {
-          "description": "The readings per wheel (fl, fr, rl, rr), at least one wheel.",
-          "allOf": [
-            {
-              "$ref": "#/$defs/tyre_wheels"
-            }
-          ]
-        },
-        "stint": {
-          "description": "Stint number, 1-based (Pitwall numbers stints: a new one at a pit exit after the car was on track). Import mode only.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
-        }
-      },
-      "required": [
-        "type",
-        "session_id",
-        "taken_at",
-        "occasion",
-        "wheels"
-      ],
-      "additionalProperties": false
-    },
-    "tyre_wheel": {
-      "type": "object",
-      "description": "The readings of one wheel; give at least one. Every field optional.",
-      "properties": {
-        "carcass_in_c": {
-          "description": "Carcass temperature, C, the edge towards the car's centreline.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "carcass_mid_c": {
-          "description": "Carcass temperature, C, the middle of the tread.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "carcass_out_c": {
-          "description": "Carcass temperature, C, the outer edge.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "surface_in_c": {
-          "description": "Tread surface temperature, C, the edge towards the car's centreline.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "surface_mid_c": {
-          "description": "Tread surface temperature, C, the middle of the tread.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "surface_out_c": {
-          "description": "Tread surface temperature, C, the outer edge.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": -50.0,
-          "maximum": 500.0
-        },
-        "tread_in": {
-          "description": "Tread remaining, 0..1, 1 = new, the edge towards the car's centreline.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": 0.0,
-          "maximum": 1.0
-        },
-        "tread_mid": {
-          "description": "Tread remaining, 0..1, 1 = new, the middle of the tread.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": 0.0,
-          "maximum": 1.0
-        },
-        "tread_out": {
-          "description": "Tread remaining, 0..1, 1 = new, the outer edge.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": 0.0,
-          "maximum": 1.0
-        },
-        "pressure_hot_kpa": {
-          "description": "Pressure at that moment (hot), kPa.",
-          "type": [
-            "number",
-            "null"
-          ],
-          "exclusiveMinimum": 0.0
-        }
-      },
-      "required": [],
-      "additionalProperties": false,
-      "minProperties": 1
-    },
-    "tyre_wheels": {
-      "type": "object",
-      "description": "The wheels the readings cover; at least one.",
-      "properties": {
-        "fl": {
-          "$ref": "#/$defs/tyre_wheel"
-        },
-        "fr": {
-          "$ref": "#/$defs/tyre_wheel"
-        },
-        "rl": {
-          "$ref": "#/$defs/tyre_wheel"
-        },
-        "rr": {
-          "$ref": "#/$defs/tyre_wheel"
-        }
-      },
-      "additionalProperties": false,
-      "minProperties": 1
     }
   }
 }

@@ -194,8 +194,8 @@ fn a_retryable_error_keeps_the_write_and_sends_it_again_with_the_same_key() {
 #[test]
 fn a_pitwall_that_does_not_know_the_method_drops_the_write_without_retry() {
     // An older Pitwall answers `unknown_method` to a write message added later (for example
-    // `tyre_readings`): the write goes to `rejected\` and the next one is not held back.
-    const READINGS: &str = "pitwall.write.tyre_readings";
+    // `sim_data_kinds`): the write goes to `rejected\` and the next one is not held back.
+    const READINGS: &str = "pitwall.write.sim_data_kinds";
     let rig = Rig::new();
     let dir = tempfile::tempdir().unwrap();
     let folder = dir.path().join("outbox");
@@ -212,8 +212,12 @@ fn a_pitwall_that_does_not_know_the_method_drops_the_write_without_retry() {
     )
     .unwrap();
     rig.fake.rules.lock().unwrap().refuse_next_with = Some("unknown_method".into());
-    ob.put(READINGS, "example/key/tyre_readings/1", params(1))
-        .unwrap();
+    ob.put(
+        READINGS,
+        "example/key/sim_data_kinds/0123456789ab",
+        params(1),
+    )
+    .unwrap();
     ob.put(LAP, "example/key/lap/1", params(2)).unwrap();
     assert!(ob.flush(Duration::from_secs(10)));
     assert!(wait_for(5, || ob.summary().rejected == 1));
