@@ -1,14 +1,34 @@
-//! The connector's icons and Windows resource scripts, drawn and written in code (no image
-//! files): a glyph on a disc whose colour is the level of the connector (off = grey, ok =
-//! green, warn = amber, error = red). They are our own artwork; nothing is copied from a third
-//! party.
+//! The connector's icons and Windows resource scripts.
 //!
-//! Pure standard library, so a connector's `build.rs` can use it as a build dependency to
-//! write the executables' `.ico` and `.rc` files ([`ico_bytes`], [`version_rc`]) before it
-//! compiles them.
+//! Two kinds of icon. A connector with its own artwork gives a [`ConnectorIcon`] (two PNG
+//! files): the tray shows the artwork with a badge of the connector's level, the window the
+//! artwork alone (decoding is behind the `artwork` feature, which the runtime's control and
+//! window crates turn on). Without artwork, the icons are drawn in code: a [`Glyph`] on a disc
+//! whose colour is the level (off = grey, ok = green, warn = amber, error = red).
+//!
+//! The executables' icon resource: [`version_rc`] takes the path of any `.ico`, so a connector
+//! with artwork passes its own checked-in file; one without writes a file with [`ico_bytes`]
+//! from the glyph. Without the `artwork` feature the crate is pure standard library, so a
+//! connector's `build.rs` can use it as a build dependency to write the executables' `.rc`
+//! (and `.ico`) files before it compiles them.
 #![deny(missing_docs)]
 
+#[cfg(feature = "artwork")]
+mod artwork;
+#[cfg(feature = "artwork")]
+pub use artwork::{ArtworkError, TRAY_SIZE, WINDOW_SIZE};
+
 use std::path::Path;
+
+/// The artwork of a connector: a 32 x 32 and a 64 x 64 PNG, both 8-bit RGBA, usually embedded
+/// with `include_bytes!`. Decoding it needs the `artwork` feature.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConnectorIcon {
+    /// The 32 x 32 image, used for the tray icon.
+    pub png_32: &'static [u8],
+    /// The 64 x 64 image, used for the window icon.
+    pub png_64: &'static [u8],
+}
 
 /// One line of a glyph, in the unit square: from point to point.
 pub type Stroke = ((f32, f32), (f32, f32));

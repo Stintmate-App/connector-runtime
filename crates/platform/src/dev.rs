@@ -135,6 +135,7 @@ mod env_tests {
         features: &[],
         ui_catalog: "{}",
         glyph: Glyph::A,
+        icon: None,
         dev_env_aliases: &["EXAMPLE_OLD", "EXAMPLE_OLDER"],
     };
 

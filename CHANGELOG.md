@@ -2,8 +2,13 @@
 
 All notable changes to this project are written here.
 
-## Unreleased
+## 0.2.0 (2026-11-10)
 
+Breaking for code that builds a `ConnectorSpec` with a struct literal (a new public field), so the minor version moves.
+
+- **Connector artwork.** `ConnectorSpec` has a new field `icon: Option<ConnectorIcon>`; set it to `None` to keep the glyph icons exactly as before, or to `Some(ConnectorIcon { png_32, png_64 })` (two 8-bit RGBA PNG files, usually `include_bytes!`) to use your own artwork. The tray shows it with a badge of the connector's level (grey off, green ok, amber warn, red error) in the lower right corner; the window shows it alone. A file that does not decode is logged and the glyph is drawn instead. `stintmate-connector-resources` gains `ConnectorIcon` and, behind the new `artwork` feature (on in the control and window crates), `ConnectorIcon::rgba`, `ConnectorIcon::badged_rgba`, `ArtworkError`, `TRAY_SIZE` and `WINDOW_SIZE`; that crate stays standard-library only without the feature. The executables' `.ico` needs nothing new: pass the path of a checked-in file to `version_rc`. New dependency: `png` 0.18 (MIT or Apache-2.0).
+
+  To migrate, add `icon: None,` to every `ConnectorSpec { .. }` literal.
 - **CI on pull requests.** The `ci` workflow runs on every pull request to `main` (and by hand). No code change.
 
 ## 0.1.3+docs.3 (2026-11-10)

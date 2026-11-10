@@ -15,7 +15,8 @@ use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
-use stintmate_connector_resources::{Glyph, render_rgba};
+use stintmate_connector_platform::spec::ConnectorSpec;
+use stintmate_connector_resources::{TRAY_SIZE, render_rgba};
 use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use windows_sys::Win32::Foundation::HWND;
@@ -56,8 +57,15 @@ pub fn tray_available() -> bool {
     unsafe { !FindWindowW(class.as_ptr(), std::ptr::null()).is_null() }
 }
 
-fn icon_for(glyph: Glyph, level: &str) -> Icon {
-    Icon::from_rgba(render_rgba(glyph, level, 32), 32, 32).expect("a 32x32 RGBA icon")
+fn icon_for(spec: &ConnectorSpec, level: &str) -> Icon {
+    let rgba = match spec.icon {
+        Some(art) => art.badged_rgba(level, TRAY_SIZE).unwrap_or_else(|e| {
+            tracing::warn!("{e}; the tray draws the glyph instead");
+            render_rgba(spec.glyph, level, TRAY_SIZE)
+        }),
+        None => render_rgba(spec.glyph, level, TRAY_SIZE),
+    };
+    Icon::from_rgba(rgba, TRAY_SIZE, TRAY_SIZE).expect("a square RGBA icon")
 }
 
 struct Menus {
@@ -163,7 +171,7 @@ impl Ui {
         if let Some(tray) = &self.tray {
             if snap.level() != self.level {
                 self.level = snap.level().to_string();
-                let _ = tray.set_icon(Some(icon_for(self.texts.spec().glyph, &self.level)));
+                let _ = tray.set_icon(Some(icon_for(self.texts.spec(), &self.level)));
             }
             let tip = tray_model::tooltip(&snap, &self.texts);
             if tip != self.tooltip {
@@ -236,7 +244,7 @@ pub fn run(run: TrayRun) {
         .with_menu(Box::new(menu))
         .with_menu_on_left_click(false)
         .with_tooltip(&tooltip)
-        .with_icon(icon_for(texts.spec().glyph, snap.level()))
+        .with_icon(icon_for(texts.spec(), snap.level()))
         .build();
     let tray = match built {
         Ok(t) => Some(t),
@@ -326,4 +334,25 @@ pub fn run(run: TrayRun) {
     }
     ui.host.close();
     drop(ui);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use stintmate_connector_resources::ConnectorIcon;
+    use stintmate_connector_testing::EXAMPLE_SPEC;
+
+    #[test]
+    fn a_spec_without_artwork_or_with_a_bad_one_gets_the_glyph_icon() {
+        // Icon has no accessor for its pixels; building it must simply not panic.
+        let _ = icon_for(&EXAMPLE_SPEC, "ok");
+        let bad = ConnectorSpec {
+            icon: Some(ConnectorIcon {
+                png_32: b"nope",
+                png_64: b"",
+            }),
+            ..EXAMPLE_SPEC
+        };
+        let _ = icon_for(&bad, "warn");
+    }
 }

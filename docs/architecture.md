@@ -55,7 +55,6 @@ Inside the process:
   service. A service with no connection has no status.
 - **The window API** (`ui.snapshot` state channel, `ui.command` method) is what the window
   process uses.
-- **The tray** (`control::tray`, Windows only) draws the connector's icon in the colour of the
   level shown for the recorder (grey off, green ok, amber warn, red error;
   `resources::level_rgb`).
 - **The single instance** (`control::instance`): a second launch does not start a second

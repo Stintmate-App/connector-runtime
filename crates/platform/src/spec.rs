@@ -5,7 +5,7 @@
 //! runtime's entry points; there is no global. [`ConnectorSpec::validate`] checks the values the
 //! rest of the runtime builds names, files and pipes from.
 
-use stintmate_connector_resources::Glyph;
+use stintmate_connector_resources::{ConnectorIcon, Glyph};
 
 /// The lowest recorder rate a spec may default to, in Hz.
 pub const HZ_MIN: f64 = 1.0;
@@ -83,8 +83,11 @@ pub struct ConnectorSpec {
     pub features: &'static [&'static str],
     /// The embedded English UI catalog, as JSON text.
     pub ui_catalog: &'static str,
-    /// The mark on the connector's icons.
+    /// The mark drawn on the icons when `icon` is `None`.
     pub glyph: Glyph,
+    /// The connector's own artwork. With `Some`, the tray shows it with a badge of the level
+    /// and the window shows it alone; with `None`, both draw `glyph`.
+    pub icon: Option<ConnectorIcon>,
     /// Environment variables read as the development tag after `STINTMATE_DEV_INSTANCE`
     /// (for a connector that had its own variable before).
     pub dev_env_aliases: &'static [&'static str],

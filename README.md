@@ -6,7 +6,7 @@ to Pitwall (Stintmate's telemetry database), its outbox and sink, the write API 
 the validation of announcement catalogs. A connector supplies what is specific to its
 simulator; this library does the rest.
 
-**Status:** release 0.1.3. It is made from the code of the AMS2 connector 3.4.0 with the
+**Status:** release 0.2.0. It is made from the code of the AMS2 connector 3.4.0 with the
 simulator taken out. Everything that depends on the simulator comes in through one value, a
 [`ConnectorSpec`](#the-connector-spec).
 
@@ -28,7 +28,7 @@ simulator taken out. Everything that depends on the simulator comes in through o
 
 | Crate | What |
 |---|---|
-| `stintmate-connector-resources` (`crates/resources/`) | the connector icons drawn in code (`Glyph`, `render_rgba`, `ico_bytes`) and the Windows version resource script (`version_rc`); standard library only, so a `build.rs` can use it |
+| `stintmate-connector-resources` (`crates/resources/`) | the connector icons (`ConnectorIcon`, the artwork as two PNG files, decoded with the `artwork` feature; or a `Glyph` drawn in code with `render_rgba`, `ico_bytes`) and the Windows version resource script (`version_rc`); standard library only without that feature, so a `build.rs` can use it |
 | `stintmate-connector-platform` (`crates/platform/`) | `ConnectorSpec` and its validation, the workspace resolver, logging, the single-instance mutex and stop event, the development tag, process, window, game and timer helpers |
 | `stintmate-connector-i18n` (`crates/i18n/`) | the text catalogs loader: language packs over the connector's embedded English catalog, plural rules, validation, the pseudo-locale |
 | `stintmate-connector-wire` (`crates/wire/`) | the write API message structs, the 32-byte `connector.telemetry` sample, the announcement catalog format and its validation, the announcement rate window, the standard actions, a schema checker for tests |
@@ -48,18 +48,18 @@ this repository's `Cargo.toml` (v0.3.3 for this release):
 
 ```toml
 [dependencies]
-stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
-stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
-stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
-stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
-stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
+stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
+stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
 stintmate-ipc                 = { git = "https://github.com/Stintmate-App/stintmate-ipc", tag = "v0.3.3" }
 
 [dev-dependencies]
-stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
+stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
 
 [build-dependencies]
-stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.1.3" }
+stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.2.0" }
 ```
 
 Each crate is used by the executable that needs it, so the tray process never links egui
@@ -116,7 +116,7 @@ every entry point; there is no global. It holds the identity (`id`, `name`, `sim
 `product`, `version`), the names derived from it (`exe_prefix`, `mutex_prefix`,
 `autostart_value`), how to recognise the game (`GameSpec`: image names, an optional window
 title and class, an optional cheap "the game may run" hint), the default recorder rate, the
-features the descriptor declares, the embedded English UI catalog, the icon glyph and the
+features the descriptor declares, the embedded English UI catalog, the icon artwork (or glyph) and the
 environment variables that also set the development tag. `ConnectorSpec::validate` checks them;
 the control app, the window and `boot` call it first and exit with 2 if it fails. The field
 by field description, the build script and the tests to copy are in

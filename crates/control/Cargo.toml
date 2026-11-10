@@ -11,7 +11,7 @@ publish.workspace = true
 
 [dependencies]
 stintmate-connector-platform = { workspace = true }
-stintmate-connector-resources = { workspace = true }
+stintmate-connector-resources = { workspace = true, features = ["artwork"] }
 stintmate-connector-i18n = { workspace = true }
 stintmate-ipc = { workspace = true }
 serde_json = { workspace = true }

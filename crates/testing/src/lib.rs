@@ -44,6 +44,7 @@ pub const EXAMPLE_SPEC: ConnectorSpec = ConnectorSpec {
     features: &["live_frame", "lap_status"],
     ui_catalog: include_str!("../fixtures/ui.example.json"),
     glyph: Glyph::I,
+    icon: None,
     dev_env_aliases: &[],
 };
 
