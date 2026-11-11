@@ -13,8 +13,8 @@ The smallest working example is in this repository: a spec of made-up values,
 ## 1. Dependencies
 
 See "Using it" in the [README](../README.md): the crates as git dependencies with
-`tag = "v0.3.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
-(v0.3.3 for release 0.3.0). The recorder needs `platform`, `wire` and `link`; the control app
+`tag = "v0.4.0"`, and `stintmate-ipc` at the tag named in this repository's `Cargo.toml`
+(v0.3.3 for release 0.4.0). The recorder needs `platform`, `wire` and `link`; the control app
 needs `platform` and `control`; the window needs `window`; `resources` goes in
 `[build-dependencies]` and `testing` in `[dev-dependencies]`.
 
@@ -227,6 +227,13 @@ sink.end_session(session, &ended_at);
   refuse; call `check_data` in your own tests to see the reason. Send every lap that ended before
   the data first, and a stop's data before its `pit_exit`. A Pitwall that predates simulator data
   answers `unknown_method`; the outbox drops those writes.
+- **Better positions for laps already sent.** A connector that learns exact positions after the
+  fact (the game writes them to a file when the session ends, say) queues each lap with
+  `sink.lap_with_address(session, build, Box::new(|key, seq| remember(key, seq)))`, keeps the
+  `(key, seq)` pairs, and later sends `sink.lap_positions(&key, seq, Box::new(|| LapPositions {
+  channels }))` with `x` and `z` (and optionally `y`), each as long as the lap's channels. It works
+  after the session ended. Declare the feature `lap_positions`. A Pitwall that predates the message
+  answers `unknown_method`; the outbox drops the write.
 - The messages are the structs of `stintmate_connector_wire::messages`. A lap's channels are
   `LapChannels`, serialized as binary `f32` arrays.
 - `set_game_token`, `keep_session_open` and `note_clock` feed the resume logic; `stats`,

@@ -29,6 +29,9 @@
       "$ref": "#/$defs/sim_data_kinds"
     },
     {
+      "$ref": "#/$defs/lap_positions"
+    },
+    {
       "$ref": "#/$defs/participant_laps"
     },
     {
@@ -586,6 +589,127 @@
         "type",
         "session_id",
         "lap_type"
+      ],
+      "additionalProperties": false
+    },
+    "lap_positions": {
+      "type": "object",
+      "description": "Replaces (or adds) the position channels of a lap already stored by the same connector, open or closed session. Nothing else of the lap changes.",
+      "properties": {
+        "type": {
+          "const": "lap_positions"
+        },
+        "session_id": {
+          "description": "The session_id returned by session_start.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "lap": {
+          "description": "Pitwall's lap number in the session.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "channels": {
+          "description": "The lap's position channels: x and z (metres, plan view) required, y (up) optional; each exactly as long as the stored lap.",
+          "type": "object",
+          "required": [
+            "x",
+            "z"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 1
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "encoding",
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "encoding": {
+                      "const": "f32"
+                    },
+                    "data": {
+                      "type": "string",
+                      "contentEncoding": "base64"
+                    }
+                  }
+                }
+              ]
+            },
+            "y": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 1
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "encoding",
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "encoding": {
+                      "const": "f32"
+                    },
+                    "data": {
+                      "type": "string",
+                      "contentEncoding": "base64"
+                    }
+                  }
+                }
+              ]
+            },
+            "z": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 1
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "encoding",
+                    "data"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "encoding": {
+                      "const": "f32"
+                    },
+                    "data": {
+                      "type": "string",
+                      "contentEncoding": "base64"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "type",
+        "session_id",
+        "lap",
+        "channels"
       ],
       "additionalProperties": false
     },
