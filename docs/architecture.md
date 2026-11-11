@@ -125,6 +125,9 @@ the idempotency key and the params. A sender thread named `outbox` sends the fil
 order, one at a time, waiting up to 30 s (`SEND_TIMEOUT`) for each answer. `ok` deletes the file.
 A non-retryable error (`bad_request`, `session_closed`, `unknown_session`, `too_large`,
 `unknown_method`, `version_unsupported`; `NON_RETRYABLE`) moves it to the `rejected` folder.
+The optional writes (`OPTIONAL_METHODS`: `sim_data_kinds`, `sim_data`, `lap_positions`) are skipped instead when the
+linked Pitwall does not declare the method or answers `unknown_method`: the file is deleted, nothing is
+counted in `rejected`, and one line per method and connection is logged.
 Anything else keeps the file and sends it again with the same idempotency key after the
 `retry_ms` the answer carried, 1 s by default, kept between 50 ms and 10 s. At start the outbox loads what
 an earlier run left, deletes `.tmp` files (writes cut short by a crash), and continues the

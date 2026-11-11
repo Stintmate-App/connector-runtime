@@ -2,6 +2,15 @@
 
 All notable changes to this project are written here.
 
+## 0.5.0 (2026-11-11)
+
+Behaviour change: the optional writes a Pitwall does not have are skipped, no longer refused.
+
+- **Optional write methods.** `outbox::OPTIONAL_METHODS` lists `pitwall.write.sim_data_kinds`, `pitwall.write.sim_data` and `pitwall.write.lap_positions`: writes an older Pitwall may not implement. Before sending one, the outbox asks the link whether the connected Pitwall declares the method (the declarations of the Stintmate IPC handshake). If it does not, the write is deleted and the next one goes on. It is not counted in `rejected`, `OnRejected` does not run, and one info line per method and connection says so (`Pitwall <version> does not take <method>; skipping those writes`). So `connector.status.outbox.rejected` no longer shows a false alarm for them.
+- **Fallback.** If the declarations are not known and an optional write is answered `unknown_method`, it is handled the same way. Every other method keeps the old rules: `unknown_method` on a required write still moves it to `rejected\`.
+- **`Transport` trait.** Two methods with defaults, `declares(method) -> Option<bool>` (`None` when not known, then the write is sent as before) and `peer_version()`. `PitwallLink` implements both; existing `Transport` implementations keep compiling.
+- **Docs.** The `WriteSink::lap_positions` documentation and the architecture notes describe the skip.
+
 ## 0.4.0 (2026-11-11)
 
 Additive: a connector that learns better positions for laps it already sent can now send them.
