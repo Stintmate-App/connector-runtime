@@ -692,7 +692,7 @@ impl<C: ResumeClock> Core<C> {
                 );
                 let ik = format!("{}/{key}/lap_positions/{lap_seq}", self.prefix);
                 if self.put("lap_positions", &ik, params) {
-                    tracing::info!("Positions of lap {key}/lap/{lap_seq} stored in the outbox");
+                    tracing::debug!("Positions of lap {key}/lap/{lap_seq} stored in the outbox");
                 }
             }
             Job::SimData(local, kind, taken_at, data) => {
