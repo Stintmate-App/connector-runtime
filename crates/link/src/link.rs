@@ -138,6 +138,15 @@ pub trait Transport: Send + Sync {
         timeout: Duration,
         done: Box<dyn FnOnce(Result<Value, CallError>) + Send>,
     ) -> Result<(), CallError>;
+    /// Whether the connected peer currently declares `method`: `None` when that is not known
+    /// (not connected, or the peer declares no methods), so the caller just sends as usual.
+    fn declares(&self, _method: &str) -> Option<bool> {
+        None
+    }
+    /// The connected peer's version, for logs.
+    fn peer_version(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Link state.
@@ -487,6 +496,18 @@ fn classify(e: Option<&Error>) -> (LinkState, String, Wait) {
 }
 
 impl Transport for PitwallLink {
+    fn declares(&self, method: &str) -> Option<bool> {
+        let decl = self.client.peer()?.decl();
+        if decl.methods.is_empty() {
+            return None;
+        }
+        Some(decl.methods.contains_key(method))
+    }
+
+    fn peer_version(&self) -> Option<String> {
+        self.client.peer().map(|p| p.info().version.clone())
+    }
+
     fn connected(&self) -> bool {
         self.client.is_connected()
     }

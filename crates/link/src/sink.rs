@@ -419,8 +419,9 @@ impl<C: ResumeClock> WriteSink<C> {
     /// it is sent as `pitwall.write.lap_positions` with the idempotency key
     /// `<prefix>/<session_key>/lap_positions/<lap_seq>`, in queue order, after the lap and after
     /// `session_end` if that was queued first. It has no sequence of its own, so
-    /// `session-resume.json` does not change. A Pitwall without this method answers
-    /// `unknown_method` and the write is dropped.
+    /// `session-resume.json` does not change. A Pitwall without this method
+    /// is not an error: the outbox skips the write (no refusal, not counted in `rejected`),
+    /// logged once per connection, and the lap keeps the positions it was sent with.
     pub fn lap_positions(&mut self, session_key: &str, lap_seq: u64, build: PositionsBuild) {
         self.core
             .send(Job::LapPositions(session_key.to_owned(), lap_seq, build));

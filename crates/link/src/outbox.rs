@@ -4,11 +4,14 @@
 //! `{method, v, ik, p, at}` (a temporary file, then a rename). The sender thread sends the files
 //! in sequence order, one at a time, waiting for each answer (30 s) with the stored idempotency
 //! key. `ok` deletes the file; a non-retryable error moves it to `rejected\`; anything else
-//! keeps it and retries with the same key (after `retry_ms`, 1 s by default). Files of an
+//! keeps it and retries with the same key (after `retry_ms`, 1 s by default). The
+//! [`OPTIONAL_METHODS`] are the exception: an older Pitwall may lack them, so when the linked
+//! Pitwall does not declare one (or answers it with `unknown_method`) the write is deleted, not
+//! counted as refused, and logged once per method per connection. Files of an
 //! earlier run are loaded first and the sequence continues after the highest one on disk.
 
 use crate::link::{CallError, Stop, Transport};
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -31,6 +34,13 @@ pub const NON_RETRYABLE: [&str; 6] = [
     "too_large",
     "unknown_method",
     "version_unsupported",
+];
+/// Write methods an older Pitwall may not have. A write of one of these that the linked Pitwall
+/// does not take is skipped (deleted, neither refused nor counted in `rejected`).
+pub const OPTIONAL_METHODS: [&str; 3] = [
+    "pitwall.write.sim_data_kinds",
+    "pitwall.write.sim_data",
+    "pitwall.write.lap_positions",
 ];
 const RETRY_DEFAULT: Duration = Duration::from_secs(1);
 const RETRY_MAX: Duration = Duration::from_secs(10);
@@ -83,6 +93,8 @@ struct Inner {
     on_result: Option<OnResult>,
     on_rejected: Option<OnRejected>,
     on_change: Option<OnChange>,
+    /// Optional methods already logged as skipped on this connection.
+    skipped: Mutex<HashSet<String>>,
 }
 
 /// The outbox (cheap to clone: one shared state).
@@ -193,6 +205,7 @@ impl Outbox {
             on_result,
             on_rejected,
             on_change,
+            skipped: Mutex::default(),
         });
         let me = Self(inner);
         let runner = me.clone();
@@ -302,14 +315,34 @@ impl Outbox {
                 }
             };
             if !inner.link.connected() {
+                lock(&inner.skipped).clear(); // the next connection may be another Pitwall
                 inner.link.wait_connected(Duration::from_millis(100));
                 if !inner.link.connected() {
                     inner.stop.wait(Duration::from_millis(50));
                 }
                 continue;
             }
+            if OPTIONAL_METHODS.contains(&item.method.as_str())
+                && inner.link.declares(&item.method) == Some(false)
+            {
+                self.skip(&item);
+                continue;
+            }
             self.send(&item);
         }
+    }
+
+    /// Drops an optional write the linked Pitwall does not take: not a refusal.
+    fn skip(&self, item: &Item) {
+        let first = lock(&self.0.skipped).insert(item.method.clone());
+        if first {
+            let version = self.0.link.peer_version().unwrap_or_else(|| "?".into());
+            tracing::info!(
+                "Pitwall {version} does not take {}; skipping those writes",
+                item.method
+            );
+        }
+        self.finish(item, false);
     }
 
     fn send(&self, item: &Item) {
@@ -343,7 +376,9 @@ impl Outbox {
                 message,
                 retry_ms,
             }) => {
-                if NON_RETRYABLE.contains(&code.as_str()) {
+                if code == "unknown_method" && OPTIONAL_METHODS.contains(&item.method.as_str()) {
+                    self.skip(item);
+                } else if NON_RETRYABLE.contains(&code.as_str()) {
                     tracing::error!(
                         "{} {} refused by Pitwall: {code}: {message} (moved to outbox\\{REJECTED})",
                         item.method,

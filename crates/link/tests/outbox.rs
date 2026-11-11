@@ -191,43 +191,144 @@ fn a_retryable_error_keeps_the_write_and_sends_it_again_with_the_same_key() {
     h.join().unwrap();
 }
 
-#[test]
-fn a_pitwall_that_does_not_know_the_method_drops_the_write_without_retry() {
-    // An older Pitwall answers `unknown_method` to a write message added later (for example
-    // `sim_data_kinds`): the write goes to `rejected\` and the next one is not held back.
-    const READINGS: &str = "pitwall.write.sim_data_kinds";
-    let rig = Rig::new();
+const KINDS: &str = "pitwall.write.sim_data_kinds";
+
+/// A scripted peer: declares what it is told to and answers `ok` or an error code per method.
+struct Scripted {
+    declared: Option<Vec<&'static str>>,
+    unknown: Vec<&'static str>,
+    sent: Mutex<Vec<String>>,
+}
+
+impl Scripted {
+    fn new(declared: Option<Vec<&'static str>>, unknown: Vec<&'static str>) -> Arc<Self> {
+        Arc::new(Self {
+            declared,
+            unknown,
+            sent: Mutex::default(),
+        })
+    }
+    fn sent(&self) -> Vec<String> {
+        self.sent.lock().unwrap().clone()
+    }
+}
+
+impl Transport for Scripted {
+    fn connected(&self) -> bool {
+        true
+    }
+    fn wait_connected(&self, _: Duration) -> bool {
+        true
+    }
+    fn call(&self, m: &str, _: Value, _: Option<&str>, _: Duration) -> Result<Value, CallError> {
+        self.sent.lock().unwrap().push(m.to_owned());
+        if self.unknown.contains(&m) {
+            return Err(CallError::Remote {
+                code: "unknown_method".into(),
+                message: "no such method".into(),
+                retry_ms: None,
+            });
+        }
+        Ok(Value::Nil)
+    }
+    fn call_async(
+        &self,
+        _: &str,
+        _: Value,
+        _: Duration,
+        _: Box<dyn FnOnce(Result<Value, CallError>) + Send>,
+    ) -> Result<(), CallError> {
+        Err(CallError::NotConnected)
+    }
+    fn declares(&self, m: &str) -> Option<bool> {
+        self.declared.as_ref().map(|d| d.contains(&m))
+    }
+}
+
+/// Puts `KINDS` then `LAP`, runs the outbox on `link` and returns it with the refused list.
+fn run_kinds_then_lap(link: Arc<Scripted>) -> (usize, Vec<String>, u64) {
     let dir = tempfile::tempdir().unwrap();
     let folder = dir.path().join("outbox");
-    let rejected: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let rejected: Arc<Mutex<Vec<String>>> = Arc::default();
     let r = rejected.clone();
     let (ob, h) = Outbox::start(
         &folder,
-        rig.transport(),
+        link.clone(),
         None,
-        Some(Box::new(move |method, _, code| {
-            r.lock().unwrap().push((method.into(), code.into()));
-        })),
+        Some(Box::new(move |m, _, _| r.lock().unwrap().push(m.into()))),
         None,
     )
     .unwrap();
-    rig.fake.rules.lock().unwrap().refuse_next_with = Some("unknown_method".into());
-    ob.put(
-        READINGS,
-        "example/key/sim_data_kinds/0123456789ab",
-        params(1),
-    )
-    .unwrap();
+    ob.put(KINDS, "example/key/sim_data_kinds/0123456789ab", params(1))
+        .unwrap();
     ob.put(LAP, "example/key/lap/1", params(2)).unwrap();
     assert!(ob.flush(Duration::from_secs(10)));
-    assert!(wait_for(5, || ob.summary().rejected == 1));
-    assert_eq!(
-        *rejected.lock().unwrap(),
-        [(READINGS.to_owned(), "unknown_method".to_owned())]
-    );
-    assert!(files(&folder).is_empty());
-    assert_eq!(files(&folder.join(REJECTED)).len(), 1);
-    assert_eq!(rig.fake.count(LAP), 1, "the next write is sent");
+    let n_rejected = ob.summary().rejected;
+    let rej = folder.join(REJECTED);
+    let leftover = files(&folder).len() + if rej.exists() { files(&rej).len() } else { 0 };
     ob.close(Duration::ZERO);
     h.join().unwrap();
+    let refused = rejected.lock().unwrap().clone();
+    assert_eq!(n_rejected as usize, files_len(&refused));
+    (leftover, link.sent(), n_rejected)
+}
+
+fn files_len(v: &[String]) -> usize {
+    v.len()
+}
+
+#[test]
+fn an_optional_write_the_pitwall_does_not_declare_is_skipped_not_rejected() {
+    let link = Scripted::new(Some(vec![LAP]), vec![]);
+    let (leftover, sent, rejected) = run_kinds_then_lap(link);
+    assert_eq!(rejected, 0);
+    assert_eq!(leftover, 0, "the skipped file is deleted");
+    assert_eq!(
+        sent,
+        [LAP],
+        "the optional write is not sent, the next one is"
+    );
+}
+
+#[test]
+fn an_optional_write_the_pitwall_declares_is_sent() {
+    let link = Scripted::new(Some(vec![KINDS, LAP]), vec![]);
+    let (leftover, sent, rejected) = run_kinds_then_lap(link);
+    assert_eq!((rejected, leftover), (0, 0));
+    assert_eq!(sent, [KINDS, LAP]);
+}
+
+#[test]
+fn unknown_declarations_send_as_before() {
+    let link = Scripted::new(None, vec![]);
+    let (_, sent, rejected) = run_kinds_then_lap(link);
+    assert_eq!(rejected, 0);
+    assert_eq!(sent, [KINDS, LAP]);
+}
+
+#[test]
+fn unknown_method_on_an_optional_write_is_not_a_refusal() {
+    // Declarations unknown, so the write is sent and the Pitwall answers `unknown_method`.
+    let link = Scripted::new(None, vec![KINDS]);
+    let (leftover, sent, rejected) = run_kinds_then_lap(link);
+    assert_eq!((rejected, leftover), (0, 0));
+    assert_eq!(sent, [KINDS, LAP], "no retry, and the next write is sent");
+}
+
+#[test]
+fn unknown_method_on_a_required_write_is_still_rejected() {
+    let link = Scripted::new(None, vec![LAP]);
+    let (leftover, sent, rejected) = run_kinds_then_lap(link);
+    assert_eq!(rejected, 1);
+    assert_eq!(leftover, 1, "the refused file waits in rejected\\");
+    assert_eq!(sent, [KINDS, LAP]);
+}
+
+#[test]
+fn the_real_link_reports_what_the_pitwall_declares() {
+    let rig = Rig::new();
+    let t = rig.transport();
+    assert_eq!(t.declares("pitwall.write.sim_data"), Some(true));
+    assert_eq!(t.declares("pitwall.write.nothing"), Some(false));
+    assert!(t.peer_version().is_some());
 }

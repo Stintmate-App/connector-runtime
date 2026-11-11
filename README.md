@@ -48,18 +48,18 @@ this repository's `Cargo.toml` (v0.3.3 for this release):
 
 ```toml
 [dependencies]
-stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
-stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
-stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
-stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
-stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
+stintmate-connector-platform  = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
+stintmate-connector-control   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
+stintmate-connector-link      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
+stintmate-connector-wire      = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
+stintmate-connector-window    = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
 stintmate-ipc                 = { git = "https://github.com/Stintmate-App/stintmate-ipc", tag = "v0.3.3" }
 
 [dev-dependencies]
-stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
+stintmate-connector-testing   = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
 
 [build-dependencies]
-stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.4.0" }
+stintmate-connector-resources = { git = "https://github.com/Stintmate-App/connector-runtime", tag = "v0.5.0" }
 ```
 
 Each crate is used by the executable that needs it, so the tray process never links egui
