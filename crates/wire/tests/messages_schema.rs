@@ -504,3 +504,46 @@ fn the_schema_refuses_what_the_structs_never_write() {
     // The checker really reads the write API document, not an empty schema.
     assert!(docs[0]["$defs"]["lap"].is_object());
 }
+
+fn positions(channels: Vec<(&'static str, Vec<f32>)>) -> LapPositions {
+    LapPositions {
+        channels: LapChannels(channels.into_iter().map(|(n, c)| (n.into(), c)).collect()),
+    }
+}
+
+/// The write API message: the sink's params carry `session_key` and `lap_seq` instead of
+/// `session_id` and `lap`.
+fn positions_message(m: &LapPositions) -> Value {
+    let mut v = message("lap_positions", true, m);
+    v["lap"] = json!(5);
+    v
+}
+
+#[test]
+fn lap_positions_validates() {
+    let xz = positions(vec![("x", vec![0.0, 1.5]), ("z", vec![2.0, 3.5])]);
+    let v = positions_message(&xz);
+    definition(&docs(), "lap_positions", &v).unwrap_or_else(|e| panic!("{e}\n{v}"));
+    let xyz = positions(vec![("x", vec![0.0]), ("z", vec![1.0]), ("y", vec![2.0])]);
+    let v = positions_message(&xyz);
+    definition(&docs(), "lap_positions", &v).unwrap_or_else(|e| panic!("{e}\n{v}"));
+}
+
+#[test]
+fn the_schema_refuses_bad_lap_positions() {
+    let good = positions_message(&positions(vec![("x", vec![0.0]), ("z", vec![1.0])]));
+    // x and z are both required
+    let mut v = good.clone();
+    v["channels"].as_object_mut().unwrap().remove("z");
+    refused("lap_positions", &v);
+    // only x, y and z
+    let mut v = good.clone();
+    v["channels"]["speed"] = v["channels"]["x"].clone();
+    refused("lap_positions", &v);
+    let mut v = good.clone();
+    v.as_object_mut().unwrap().remove("lap");
+    refused("lap_positions", &v);
+    let mut v = good;
+    v["extra"] = json!(1);
+    refused("lap_positions", &v);
+}

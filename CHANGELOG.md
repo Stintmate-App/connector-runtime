@@ -2,6 +2,17 @@
 
 All notable changes to this project are written here.
 
+## 0.4.0 (2026-11-11)
+
+Additive: a connector that learns better positions for laps it already sent can now send them.
+
+- **`WriteSink::lap_positions(session_key, lap_seq, build)`**, sent as `pitwall.write.lap_positions` (connector kit 0.6.0's `lap_positions` message). `build` returns `messages::LapPositions { channels }`: `x` and `z` (both required) and optionally `y`, as many samples as the lap already stored. The message replaces those channels of that lap and nothing else. The lap is named by `session_key` and `lap_seq`, the sequence number of that lap's `pitwall.write.lap`, so the connector never needs a reply to find it.
+- **`WriteSink::lap_with_address(local, build, on_queued)`.** Like `lap`, and `on_queued(session_key, seq)` runs on the writer thread right after the lap is stored in the outbox, with the session key and sequence number of the lap's idempotency key: the address `lap_positions` needs. `lap` is `lap_with_address` with an `on_queued` that does nothing. `on_queued` does not run when the lap could not be stored. New types `sink::OnQueued` and `sink::PositionsBuild`.
+- **Idempotency and order.** The key is `<prefix>/<session_key>/lap_positions/<lap_seq>`; the write is ordered and idempotent like the others and goes out in queue order. It is addressed by key, so it can be queued after `end_session`, when the session is gone from the sink's state, and Pitwall accepts it for a closed session of the same connector. It has no sequence of its own: `session-resume.json` is unchanged.
+- **Feature.** `spec::FEATURES` has `lap_positions` (the kit's feature vocabulary), 22 in all, so a connector that sends the message can declare it.
+- **Needs a Pitwall that implements the message.** An older one answers `unknown_method`; the outbox drops that write without retrying, and the lap keeps the positions it was sent with.
+- **Testing.** The fake Pitwall of `stintmate-connector-testing` answers `pitwall.write.lap_positions`. The schema fixture of the wire tests is the kit's write API schema of 0.6.0 with `lap_positions`.
+
 ## 0.3.0 (2026-11-11)
 
 **Breaking**: the tyre-reading types of 0.2.1 are removed, so the minor version moves. That message was replaced in the connector kit before any connector shipped it by a generic one for data the game gives at a moment; use `WriteSink::sim_data` and `WriteSink::sim_data_kinds`.

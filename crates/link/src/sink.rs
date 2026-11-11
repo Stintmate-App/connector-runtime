@@ -14,7 +14,7 @@
 //! it under the same key (Pitwall keeps the session open across restarts and replays the first
 //! answer to `session_start`, so nothing is announced twice). Anything else gets a new key. Each
 //! write has an idempotency key
-//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|sim_data/<seq>|end`,
+//! `<prefix>/<session_key>/start|lap/<seq>|setup/<seq>|pit_exit/<seq>|participants/<seq>|sim_data/<seq>|lap_positions/<lap_seq>|end`,
 //! `<prefix>/catalog/<sha256-12>` for a catalog and `<prefix>/sim_data_kinds/<sha256-12>` for the
 //! descriptions of the simulator data kinds, assigned here and stored with the write.
 
@@ -28,8 +28,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use stintmate_connector_wire::catalog::{canonical, sha12};
 use stintmate_connector_wire::messages::{
-    Catalog, Lap, ParticipantLap, ParticipantLaps, PitExit, SessionEnd, SessionStart, Setup,
-    SimData, SimDataKind, SimDataKinds,
+    Catalog, Lap, LapPositions, ParticipantLap, ParticipantLaps, PitExit, SessionEnd, SessionStart,
+    Setup, SimData, SimDataKind, SimDataKinds,
 };
 use stintmate_connector_wire::sim_data as limits;
 use stintmate_ipc::codec::{self, Value};
@@ -82,6 +82,11 @@ pub struct SessionOpen {
 
 /// Builds a lap message; runs on the writer thread.
 pub type LapBuild = Box<dyn FnOnce() -> Lap + Send>;
+/// Builds a lap's positions message; runs on the writer thread.
+pub type PositionsBuild = Box<dyn FnOnce() -> LapPositions + Send>;
+/// Called on the writer thread right after a lap is stored in the outbox, with the lap's session
+/// key and sequence number (the `<session_key>` and `<seq>` of its idempotency key).
+pub type OnQueued = Box<dyn FnOnce(&str, u64) + Send>;
 /// Builds a setup message; runs on the writer thread.
 pub type SetupBuild = Box<dyn FnOnce() -> Setup + Send>;
 
@@ -120,7 +125,9 @@ enum Job<C> {
     Start(u64, Box<(Option<Catalog>, SessionStart)>),
     /// `(session, ended_at, clock)`: a clock stores the resume file, not a `session_end`.
     End(u64, String, Option<C>),
-    Lap(u64, LapBuild),
+    Lap(u64, LapBuild, OnQueued),
+    /// `(session key, lap seq, build)`: addressed by key, the session may be gone from the state.
+    LapPositions(String, u64, PositionsBuild),
     Setup(u64, String, String, SetupBuild),
     PitExit(u64, String, Option<f64>),
     Participants(u64, Vec<ParticipantLap>),
@@ -392,7 +399,31 @@ impl<C: ResumeClock> WriteSink<C> {
 
     /// Queues a lap; `build` runs on the writer thread.
     pub fn lap(&mut self, local: u64, build: LapBuild) {
-        self.core.send(Job::Lap(local, build));
+        self.lap_with_address(local, build, Box::new(|_, _| {}));
+    }
+
+    /// Queues a lap like [`lap`](Self::lap) and calls `on_queued(session_key, seq)` on the writer
+    /// thread right after the lap is stored in the outbox. The pair is the lap's address: the
+    /// session key and sequence number of its idempotency key
+    /// (`<prefix>/<session_key>/lap/<seq>`), the one [`lap_positions`](Self::lap_positions)
+    /// names the lap by. `on_queued` does not run when the lap is not stored. Keep it short: the
+    /// writer thread runs it between two writes.
+    pub fn lap_with_address(&mut self, local: u64, build: LapBuild, on_queued: OnQueued) {
+        self.core.send(Job::Lap(local, build, on_queued));
+    }
+
+    /// Queues better positions for a lap that was already sent (the lap whose address
+    /// [`lap_with_address`](Self::lap_with_address) gave): the message replaces the lap's `x` and
+    /// `z` channels (and adds `y`), nothing else. `build` runs on the writer thread. It is
+    /// addressed by key, so it works after the session ended and is gone from this sink's state;
+    /// it is sent as `pitwall.write.lap_positions` with the idempotency key
+    /// `<prefix>/<session_key>/lap_positions/<lap_seq>`, in queue order, after the lap and after
+    /// `session_end` if that was queued first. It has no sequence of its own, so
+    /// `session-resume.json` does not change. A Pitwall without this method answers
+    /// `unknown_method` and the write is dropped.
+    pub fn lap_positions(&mut self, session_key: &str, lap_seq: u64, build: PositionsBuild) {
+        self.core
+            .send(Job::LapPositions(session_key.to_owned(), lap_seq, build));
     }
 
     /// Queues a setup reading taken at `at` for `origin`; `build` runs on the writer thread.
@@ -507,12 +538,17 @@ impl<C: ResumeClock> Core<C> {
         }
     }
 
-    fn put(&self, kind: &str, ik: &str, params: Value) {
-        if let Err(e) = self
+    /// Stores a write in the outbox; whether it was stored.
+    fn put(&self, kind: &str, ik: &str, params: Value) -> bool {
+        match self
             .outbox()
             .put(&format!("pitwall.write.{kind}"), ik, params)
         {
-            tracing::error!("Cannot store {kind} {ik} in the outbox: {e} (dropped)");
+            Ok(()) => true,
+            Err(e) => {
+                tracing::error!("Cannot store {kind} {ik} in the outbox: {e} (dropped)");
+                false
+            }
         }
     }
 
@@ -550,13 +586,13 @@ impl<C: ResumeClock> Core<C> {
 
     /// Stores a message of a session under its key and sequence; `segment` is the idempotency
     /// key's word for the kind.
-    fn put_seq(&self, kind: &str, segment: &str, key: &str, seq: u64, params: Value) {
+    fn put_seq(&self, kind: &str, segment: &str, key: &str, seq: u64, params: Value) -> bool {
         let params = with(
             params,
             vec![("session_key", Value::from(key)), ("seq", Value::from(seq))],
         );
         let ik = format!("{}/{key}/{segment}/{seq}", self.prefix);
-        self.put(kind, &ik, params);
+        self.put(kind, &ik, params)
     }
 
     fn handle(&self, job: Job<C>) {
@@ -613,13 +649,16 @@ impl<C: ResumeClock> Core<C> {
                 );
                 self.put("session_end", &format!("{}/{key}/end", self.prefix), params);
             }
-            Job::Lap(local, build) => {
+            Job::Lap(local, build, on_queued) => {
                 let Some((key, seq)) = self.next(local, "lap") else {
                     return;
                 };
                 let msg = build();
-                self.put_seq("lap", "lap", &key, seq, to_value(&msg));
+                let stored = self.put_seq("lap", "lap", &key, seq, to_value(&msg));
                 lock(&self.stats).laps_queued += 1;
+                if stored {
+                    on_queued(&key, seq);
+                }
                 tracing::info!(
                     "Lap ({}, {} channels) stored in the outbox ({key}/lap/{seq})",
                     msg.lap_type,
@@ -641,6 +680,20 @@ impl<C: ResumeClock> Core<C> {
                 };
                 let msg = PitExit { at, fuel_l };
                 self.put_seq("pit_exit", "pit_exit", &key, seq, to_value(&msg));
+            }
+            Job::LapPositions(key, lap_seq, build) => {
+                let msg = build();
+                let params = with(
+                    to_value(&msg),
+                    vec![
+                        ("session_key", Value::from(key.as_str())),
+                        ("lap_seq", Value::from(lap_seq)),
+                    ],
+                );
+                let ik = format!("{}/{key}/lap_positions/{lap_seq}", self.prefix);
+                if self.put("lap_positions", &ik, params) {
+                    tracing::info!("Positions of lap {key}/lap/{lap_seq} stored in the outbox");
+                }
             }
             Job::SimData(local, kind, taken_at, data) => {
                 let Some((key, seq)) = self.next(local, "sim_data") else {
@@ -1331,6 +1384,66 @@ mod tests {
             let ik = format!("example/00aa00aa00aa00aa/{ik}");
             assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
         }
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn lap_positions_get_the_lap_address_as_key_and_carry_no_sequence_of_their_own() {
+        use stintmate_connector_wire::messages::LapChannels;
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        a.lap(1, Box::new(lap_message));
+        a.end_session(1, "2026-10-25T10:05:00.000+02:00");
+        a.lap_positions(
+            &key,
+            1,
+            Box::new(|| LapPositions {
+                channels: LapChannels(vec![("x".into(), vec![1.0]), ("z".into(), vec![2.0])]),
+            }),
+        );
+        assert!(a.queued(Duration::from_secs(5)));
+        let ik = format!("sample-sim/{key}/lap_positions/1");
+        assert_eq!(stored_with(dir.path(), &ik), 1);
+        assert_eq!(stored_with(dir.path(), "pitwall.write.lap_positions"), 1);
+        assert_eq!(stored_with(dir.path(), "lap_seq"), 1);
+        a.close(Duration::ZERO);
+    }
+
+    #[test]
+    fn on_queued_receives_the_key_and_sequence_of_the_laps_idempotency_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = recorder(dir.path(), 4242, "sample-sim");
+        let key = open(&mut a, "RACE");
+        let seen = Arc::new(StdMutex::new(Vec::new()));
+        for _ in 0..2 {
+            let slot = seen.clone();
+            a.lap_with_address(
+                1,
+                Box::new(lap_message),
+                Box::new(move |k, seq| {
+                    slot.lock()
+                        .unwrap()
+                        .push((k.to_owned(), seq, std::thread::current().id()));
+                }),
+            );
+        }
+        a.lap(1, Box::new(lap_message));
+        assert!(a.queued(Duration::from_secs(5)));
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 2);
+        for (i, (k, seq, thread)) in seen.iter().enumerate() {
+            assert_eq!(k, &key);
+            assert_eq!(*seq, i as u64 + 1);
+            assert_ne!(*thread, std::thread::current().id(), "on the writer thread");
+            let ik = format!("sample-sim/{k}/lap/{seq}");
+            assert_eq!(stored_with(dir.path(), &ik), 1, "{ik}");
+        }
+        // a plain `lap` goes on counting after the addressed ones
+        assert_eq!(
+            stored_with(dir.path(), &format!("sample-sim/{key}/lap/3")),
+            1
+        );
         a.close(Duration::ZERO);
     }
 }

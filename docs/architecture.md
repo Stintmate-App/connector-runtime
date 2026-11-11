@@ -140,7 +140,7 @@ messages, or closures that build them, and it does the rest on its own thread na
 - A session is named by a **session key**, 16 random hex digits (`new_session_key`) chosen when
   the connector opens it (`start_session`).
 - Every write gets an **idempotency key**, assigned by the sink and stored with the write:
-  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`, `.../sim_data/<seq>`,
+  `<prefix>/<session_key>/start`, `.../lap/<seq>`, `.../setup/<seq>`, `.../pit_exit/<seq>`, `.../sim_data/<seq>`, `.../lap_positions/<lap_seq>`,
   `.../participants/<seq>` and `.../end`, and `<prefix>/catalog/<12 hex digits of the SHA-256>`
   for a catalog, `<prefix>/sim_data_kinds/<12 hex digits of the SHA-256>` for the description of the
   simulator data kinds. The prefix is the connector's id. Sending the same write again is therefore
@@ -152,6 +152,11 @@ messages, or closures that build them, and it does the rest on its own thread na
   would refuse. `session-resume.json` keeps five sequences; the fifth is `sim_data`'s (a file
   written by 0.2.1 or 0.2.2, whose fifth counted the removed tyre readings, hands its value over:
   keys only need to be unique; a four-item file reads the fifth as 0).
+- **Better positions** (`lap_positions`) are addressed by key: `WriteSink::lap_with_address` hands the
+  lap's session key and sequence number to a callback on the writer thread right after the lap is
+  stored, and `WriteSink::lap_positions(session_key, lap_seq, build)` queues the replacement
+  `x`/`z` (and `y`) channels of that lap under `<prefix>/<session_key>/lap_positions/<lap_seq>`. It works
+  after `end_session` and has no sequence of its own, so `session-resume.json` does not change.
 - **Laps and setups are built by closures** (`LapBuild`, `SetupBuild`) that run on the writer
   thread, so the loop only moves the data it already has.
 - **Session resume.** A recorder stopped while the game runs does not end its session. It

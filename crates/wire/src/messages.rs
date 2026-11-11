@@ -371,6 +371,18 @@ pub struct PitExit {
     pub fuel_l: Option<f64>,
 }
 
+/// `pitwall.write.lap_positions`: better position channels for a lap already sent. Over IPC the
+/// lap is named by `session_key` and `lap_seq` (the sink adds both); the write API message
+/// `lap_positions` carries `session_id` and `lap` instead.
+///
+/// `channels` holds `x` and `z` (metres, plan view; both required) and optionally `y` (up), each
+/// as many samples as the stored lap.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LapPositions {
+    /// `x`, `z` and optionally `y`.
+    pub channels: LapChannels,
+}
+
 /// `pitwall.write.sim_data`: data the simulator gave at a moment (a stop, a reset, the garage, a
 /// penalty notice...) that Pitwall has no typed message for, in a structure the connector designs
 /// and describes with [`SimDataKinds`]. Pitwall stores it as sent. Not for samples: those are
