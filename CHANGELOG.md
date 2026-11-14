@@ -2,6 +2,10 @@
 
 All notable changes to this project are written here.
 
+## 0.6.0 (2026-11-14)
+
+- **The feature `repair`.** `platform::spec::FEATURES` gains `repair` (23 names), the connector kit 0.8.0 vocabulary: a connector whose live frame carries `car.repair_needed` declares it. The array's length is part of its type, so this is a minor version. No behaviour change otherwise.
+
 ## 0.5.0 (2026-11-11)
 
 Behaviour change: the optional writes a Pitwall does not have are skipped, no longer refused.
