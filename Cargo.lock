@@ -2140,7 +2140,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stintmate-connector-control"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "rmp-serde",
  "serde_json",
@@ -2158,7 +2158,7 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-i18n"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "hex",
  "serde_json",
@@ -2169,7 +2169,7 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-link"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "rmp-serde",
  "serde",
@@ -2184,7 +2184,7 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-platform"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2200,14 +2200,14 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-resources"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "png",
 ]
 
 [[package]]
 name = "stintmate-connector-testing"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde_json",
  "stintmate-connector-platform",
@@ -2219,7 +2219,7 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-window"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "eframe",
  "png",
@@ -2236,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "stintmate-connector-wire"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "hex",
  "proptest",

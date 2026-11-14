@@ -14,7 +14,7 @@ pub const HZ_MAX: f64 = 200.0;
 
 /// The features a connector may declare in its descriptor (the connector kit's `contract.json`
 /// vocabulary).
-pub const FEATURES: [&str; 22] = [
+pub const FEATURES: [&str; 23] = [
     "live_frame",
     "lap_status",
     "capture_target",
@@ -37,6 +37,7 @@ pub const FEATURES: [&str; 22] = [
     "translated_texts",
     "remembered_services",
     "options",
+    "repair",
 ];
 
 /// How the runtime recognises the simulator.
